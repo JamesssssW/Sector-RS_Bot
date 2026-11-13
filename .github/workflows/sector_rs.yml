@@ -1,9 +1,11 @@
 name: Daily Sector RS Ranking
 
 on:
-  schedule:    # 預設在美股收盤後的香港時間每日早上 6:30 運行 (UTC 22:30，星期二至六)
-    - cron: '30 22 * * 2-6' # Runs at 22:30, Tuesday through Saturday
-  workflow_dispatch: # 支援在 GitHub 網頁手動點擊執行
+  schedule:
+    # 星期二至六（美股交易日翌日清晨）的 UTC 13:00、15:00、17:00、19:00、21:00 運行
+    # 對應香港時間夜晚到凌晨開市時段
+    - cron: '0 13,15,17,19,21 * * 2-6'
+  workflow_dispatch: # 支援手動觸發
 
 permissions:
   contents: write # 必須開啟寫入權限，才能儲存 history.json
