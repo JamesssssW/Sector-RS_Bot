@@ -24,7 +24,7 @@ HISTORY_FILE = 'history.json'
 tickers = list(SECTORS.keys()) + [BENCHMARK]
 
 def load_previous_ranks():
-    """讀取昨日儲存的排名紀錄"""
+    """讀取昨日儲存的 3M 排名紀錄"""
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
@@ -34,47 +34,66 @@ def load_previous_ranks():
     return {}
 
 def save_current_ranks(df):
-    """將今日最新排名寫入 history.json"""
+    """將今日最新 3M 排名寫入 history.json"""
     ranks = {row['ticker']: idx + 1 for idx, row in df.iterrows()}
     with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
         json.dump(ranks, f, ensure_ascii=False, indent=2)
 
 def calculate_rs():
     print("正在下載板塊及大盤數據...")
+    # 下載足夠覆蓋 3 個月（約 63 個交易日）的歷史數據
     data = yf.download(tickers, period='6mo', progress=False)['Close']
     
     if isinstance(data, pd.Series):
         raise ValueError("下載數據出錯，請檢查網絡或 Ticker")
 
-    lookback_days = 63
-    if len(data) < lookback_days:
-        lookback_days = len(data) - 1
+    # 定義計算周期：1M = 21個交易日，3M = 63個交易日
+    days_1m = 21
+    days_3m = 63
+    
+    total_rows = len(data)
+    if total_rows < days_3m:
+        days_3m = total_rows - 1
+    if total_rows < days_1m:
+        days_1m = total_rows - 1
 
-    spy_ret = (data[BENCHMARK].iloc[-1] / data[BENCHMARK].iloc[-lookback_days]) - 1
+    # 計算基準 SPY 在不同周期的回報率
+    spy_ret_3m = (data[BENCHMARK].iloc[-1] / data[BENCHMARK].iloc[-days_3m]) - 1
+    spy_ret_1m = (data[BENCHMARK].iloc[-1] / data[BENCHMARK].iloc[-days_1m]) - 1
     
     rs_scores = []
     for ticker, name in SECTORS.items():
         if ticker in data.columns:
-            start_price = data[ticker].iloc[-lookback_days]
-            end_price = data[ticker].iloc[-1]
-            sector_ret = (end_price / start_price) - 1
-            excess_return = sector_ret - spy_ret
+            # 3個月回報與超額回報
+            p_start_3m = data[ticker].iloc[-days_3m]
+            p_end = data[ticker].iloc[-1]
+            ret_3m = (p_end / p_start_3m) - 1
+            excess_3m = ret_3m - spy_ret_3m
+            
+            # 1個月回報與超額回報
+            p_start_1m = data[ticker].iloc[-days_1m]
+            ret_1m = (p_end / p_start_1m) - 1
+            excess_1m = ret_1m - spy_ret_1m
+            
             rs_scores.append({
                 'ticker': ticker,
                 'name': name,
-                'return': sector_ret * 100,
-                'excess_return': excess_return * 100
+                'return_3m': ret_3m * 100,
+                'excess_3m': excess_3m * 100,
+                'return_1m': ret_1m * 100,
+                'excess_1m': excess_1m * 100
             })
             
+    # 主要根據 3M 超額回報進行排名（可按需要改為 1M）
     df_rs = pd.DataFrame(rs_scores)
-    df_rs = df_rs.sort_values(by='excess_return', ascending=False).reset_index(drop=True)
+    df_rs = df_rs.sort_values(by='excess_3m', ascending=False).reset_index(drop=True)
     return df_rs
 
 def format_rank_change(current_rank, prev_rank):
     """計算名次變化並格式化顯示"""
     if prev_rank is None:
         return "NEW"
-    diff = prev_rank - current_rank  # 昨日名次減今日名次，正數代表上升
+    diff = prev_rank - current_rank
     if diff > 0:
         return f"▲{diff}"
     elif diff < 0:
@@ -89,10 +108,11 @@ def send_to_discord(df, prev_ranks):
         return
 
     message = "📊 **美股板塊相對強度 (RS) 每日排行榜**\n"
-    message += "基準：SPY | 周期：近 3 個月 (63日) 超額回報\n"
+    message += "基準：SPY | 比較周期：近 1M (21日) & 近 3M (63日) 超額回報\n"
     message += "```text\n"
-    message += f"{'排名':<4}{'變化':<6}{'ETF':<6}{'板塊名稱':<10}{'3M回報':<9}{'相對SPY超額':<10}\n"
-    message += "-" * 52 + "\n"
+    # 調整表格標題與欄位闊度
+    message += f"{'排名':<4}{'變化':<6}{'ETF':<6}{'板塊名稱':<10}{'1M超額':<9}{'3M超額':<9}\n"
+    message += "-" * 50 + "\n"
     
     for idx, row in df.iterrows():
         rank = idx + 1
@@ -101,9 +121,9 @@ def send_to_discord(df, prev_ranks):
         change_str = format_rank_change(rank, prev_rank)
         
         name = row['name']
-        ret = f"{row['return']:+.2f}%"
-        excess = f"{row['excess_return']:+.2f}%"
-        message += f"{rank:<4}{change_str:<6}{ticker:<6}{name:<10}{ret:<9}{excess:<10}\n"
+        exc_1m = f"{row['excess_1m']:+.2f}%"
+        exc_3m = f"{row['excess_3m']:+.2f}%"
+        message += f"{rank:<4}{change_str:<6}{ticker:<6}{name:<10}{exc_1m:<9}{exc_3m:<9}\n"
         
     message += "```"
 
