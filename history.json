@@ -1,22 +1,82 @@
 {
-  "XHB": 1,
-  "XLY": 2,
-  "XLV": 3,
-  "XLF": 4,
-  "XLP": 5,
-  "XLRE": 6,
-  "IYT": 7,
-  "XRT": 8,
-  "XBI": 9,
-  "XLU": 10,
-  "KRE": 11,
-  "XLB": 12,
-  "ITA": 13,
-  "XLI": 14,
-  "XLC": 15,
-  "IGV": 16,
-  "XLE": 17,
-  "XME": 18,
-  "XLK": 19,
-  "SMH": 20
+  "XHB": {
+    "rank": 1,
+    "quadrant": "Leading"
+  },
+  "XLY": {
+    "rank": 2,
+    "quadrant": "Leading"
+  },
+  "XLV": {
+    "rank": 3,
+    "quadrant": "Leading"
+  },
+  "XLF": {
+    "rank": 4,
+    "quadrant": "Leading"
+  },
+  "XLP": {
+    "rank": 5,
+    "quadrant": "Leading"
+  },
+  "XLRE": {
+    "rank": 6,
+    "quadrant": "Leading"
+  },
+  "IYT": {
+    "rank": 7,
+    "quadrant": "Leading"
+  },
+  "XRT": {
+    "rank": 8,
+    "quadrant": "Leading"
+  },
+  "XBI": {
+    "rank": 9,
+    "quadrant": "Leading"
+  },
+  "XLU": {
+    "rank": 10,
+    "quadrant": "Leading"
+  },
+  "KRE": {
+    "rank": 11,
+    "quadrant": "Leading"
+  },
+  "XLB": {
+    "rank": 12,
+    "quadrant": "Leading"
+  },
+  "ITA": {
+    "rank": 13,
+    "quadrant": "Leading"
+  },
+  "XLI": {
+    "rank": 14,
+    "quadrant": "Leading"
+  },
+  "XLC": {
+    "rank": 15,
+    "quadrant": "Improving"
+  },
+  "IGV": {
+    "rank": 16,
+    "quadrant": "Lagging"
+  },
+  "XLE": {
+    "rank": 17,
+    "quadrant": "Lagging"
+  },
+  "XME": {
+    "rank": 18,
+    "quadrant": "Improving"
+  },
+  "XLK": {
+    "rank": 19,
+    "quadrant": "Lagging"
+  },
+  "SMH": {
+    "rank": 20,
+    "quadrant": "Lagging"
+  }
 }
