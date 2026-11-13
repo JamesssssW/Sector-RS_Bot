@@ -29,9 +29,9 @@ SECTORS = {
     'IYT': '運輸',
     'ITA': '國防航天',
     'XME': '金屬礦業',
-    # 前沿主題 / 賽道 (已更新 DRAM ETF、光通信 LYTE、加密挖礦 WGMI)
+    # 前沿主題 / 賽道
     'CIBR': '網絡安全',
-    'DRAM': 'DRAM記憶體',
+    'DRAM': '記憶體',
     'UFO': '太空探索',
     'LYTE': '光通信',
     'WGMI': '加密挖礦'
@@ -211,6 +211,19 @@ def send_to_discord(df, prev_history):
 
         unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<6}{quad_display:<11}{r1w:<7}{r2w:<7}{r1m:<7}{ratio_str:<7}{mom_str:<8}\n"
 
+    # 📊 計算各象限分佈數量
+    quad_counts = df['quadrant'].value_counts()
+    count_leading = quad_counts.get("Leading", 0)
+    count_improving = quad_counts.get("Improving", 0)
+    count_weakening = quad_counts.get("Weakening", 0)
+    count_lagging = quad_counts.get("Lagging", 0)
+
+    market_breadth_summary = (
+        f"**📈 市場板塊象限分佈統計 (共 {len(df)} 個標的)**\n"
+        f"🟢 Leading: `{count_leading}` | 🔵 Improving: `{count_improving}` | "
+        f"🟡 Weakening: `{count_weakening}` | 🔴 Lagging: `{count_lagging}`"
+    )
+
     rotation_section = ""
     if rotations:
         rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n" + "\n".join(rotations) + "\n\n"
@@ -222,7 +235,8 @@ def send_to_discord(df, prev_history):
         "description": (
             f"**🏆 當前領頭羊象限：** `{top_quadrant}`\n\n"
             f"{rotation_section}"
-            f"**【板塊總覽與 RRG 動能清單 (⭐ 代表 Leading 領先區)】**\n```text\n{unified_table}\n```"
+            f"**【板塊總覽與 RRG 動能清單 (⭐ 代表 Leading 領先區)】**\n```text\n{unified_table}\n```\n"
+            f"{market_breadth_summary}"
         ),
         "color": embed_color,
         "footer": {
