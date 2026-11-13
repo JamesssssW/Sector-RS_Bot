@@ -29,7 +29,7 @@ SECTORS = {
     'IYT': '運輸',
     'ITA': '國防航天',
     'XME': '金屬礦業',
-    # 前沿主題 / 賽道 (DRAM 標籤已簡化為「記憶體」)
+    # 前沿主題 / 賽道
     'CIBR': '網絡安全',
     'DRAM': '記憶體',
     'UFO': '太空探索',
@@ -42,31 +42,55 @@ HISTORY_FILE = 'history.json'
 tickers = list(SECTORS.keys()) + [BENCHMARK]
 
 def load_previous_history():
-    """讀取昨日儲存的歷史紀錄（包含排名與象限）"""
+    """讀取歷史紀錄（包含過去的排名與象限序列）"""
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
+                # 相容舊版簡單格式
                 if data and isinstance(list(data.values())[0], int):
-                    return {k: {"rank": v, "quadrant": None} for k, v in data.items()}
+                    new_data = {}
+                    for k, v in data.items():
+                        new_data[k] = {"ranks": [v], "quadrants": [None], "rank": v, "quadrant": None}
+                    return new_data
                 return data
         except Exception as e:
             print(f"讀取歷史紀錄失敗：{e}")
     return {}
 
-def save_current_history(df):
-    """將今日最新排名與象限寫入 history.json"""
+def save_current_history(df_result):
+    """將今日最新排名與象限追加寫入 history.json (最多保留最近 20 日)"""
+    prev_data = load_previous_history()
     history_data = {}
-    for idx, row in df.iterrows():
-        history_data[row['ticker']] = {
-            "rank": idx + 1,
-            "quadrant": row['quadrant']
+    
+    for idx, row in df_result.iterrows():
+        ticker = row['ticker']
+        curr_rank = idx + 1
+        curr_quad = row['quadrant']
+        
+        item_hist = prev_data.get(ticker, {})
+        ranks = item_hist.get('ranks', [])
+        quadrants = item_hist.get('quadrants', [])
+        
+        ranks.append(curr_rank)
+        quadrants.append(curr_quad)
+        
+        # 只保留最近 20 日數據
+        ranks = ranks[-20:]
+        quadrants = quadrants[-20:]
+        
+        history_data[ticker] = {
+            "ranks": ranks,
+            "quadrants": quadrants,
+            "rank": curr_rank,
+            "quadrant": curr_quad
         }
+        
     with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
         json.dump(history_data, f, ensure_ascii=False, indent=2)
 
 def calculate_rrg_and_rs():
-    print("正在下載 25 個板塊數據並計算 RRG 評分及相對表現...")
+    print("正在下載 25 個板塊數據並計算多週期動能與排名品質...")
     data = yf.download(tickers, period='6mo', progress=False)['Close']
     
     if isinstance(data, pd.Series):
@@ -94,25 +118,24 @@ def calculate_rrg_and_rs():
     latest_ratio = rs_ratio.iloc[-1]
     latest_mom = rs_momentum.iloc[-1]
 
-    days_1w, days_2w, days_1m = 5, 10, 21
-    p_end = data.iloc[-1]
-    
-    spy_ret_1w = (p_end[BENCHMARK] / data.iloc[-days_1w][BENCHMARK]) - 1
-    spy_ret_2w = (p_end[BENCHMARK] / data.iloc[-days_2w][BENCHMARK]) - 1
-    spy_ret_1m = (p_end[BENCHMARK] / data.iloc[-days_1m][BENCHMARK]) - 1
+    # 計算多週期回報率 (1D, 5D, 21D)
+    ret_1d = data.pct_change(1).iloc[-1]
+    ret_5d = data.pct_change(5).iloc[-1]
+    ret_21d = data.pct_change(21).iloc[-1]
+
+    spy_1d = ret_1d[BENCHMARK]
+    spy_5d = ret_5d[BENCHMARK]
+    spy_21d = ret_21d[BENCHMARK]
 
     results = []
     for t, name in SECTORS.items():
         if t in data.columns:
-            e1w = ((p_end[t] / data.iloc[-days_1w][t]) - 1 - spy_ret_1w) * 100
-            e2w = ((p_end[t] / data.iloc[-days_2w][t]) - 1 - spy_ret_2w) * 100
-            e1m = ((p_end[t] / data.iloc[-days_1m][t]) - 1 - spy_ret_1m) * 100
+            e1d = (ret_1d[t] - spy_1d) * 100
+            e5d = (ret_5d[t] - spy_5d) * 100
+            e21d = (ret_21d[t] - spy_21d) * 100
             
             r_ratio = float(latest_ratio.get(t, 100.0))
             r_mom = float(latest_mom.get(t, 100.0))
-
-            # 計算綜合 RRG 評分 (結合 RS-Ratio 與 RS-Momentum)
-            score = (r_ratio + r_mom) / 2
 
             if r_ratio >= 100 and r_mom >= 100:
                 quadrant = "Leading"
@@ -130,16 +153,18 @@ def calculate_rrg_and_rs():
             results.append({
                 'ticker': t,
                 'name': name,
-                'rel_1w': e1w,
-                'rel_2w': e2w,
-                'rel_1m': e1m,
-                'score': score,
+                'rel_1d': e1d,
+                'rel_5d': e5d,
+                'rel_21d': e21d,
+                'r_ratio': r_ratio,
+                'r_mom': r_mom,
                 'quadrant': quadrant,
                 'quad_emoji': quad_emoji
             })
 
     df_rs = pd.DataFrame(results)
-    df_rs = df_rs.sort_values(by='rel_1m', ascending=False).reset_index(drop=True)
+    # 初步按 1M 相對表現排序以得出今日暫定排名
+    df_rs = df_rs.sort_values(by='rel_21d', ascending=False).reset_index(drop=True)
     return df_rs
 
 def format_rank_change(current_rank, prev_rank):
@@ -179,17 +204,19 @@ def send_to_discord(df, prev_history):
 
     rotations = []
 
-    # 綜合大表格 (名稱欄位設為 6 個字元寬度，剛好容納「記憶體」等中文字)
-    unified_table = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<6}{'象限':<11}{'1W相':<7}{'2W相':<7}{'1M相':<7}{'評分':<8}\n"
-    unified_table += "-" * 65 + "\n"
+    # 整合表格：名(3) 變(4) ETF(6) 名稱(6) 象限(11) 1D相(6) 1W相(6) 1M相(6) 5D均(5) 品質/狀態(9)
+    unified_table = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<6}{'象限':<11}{'1D相':<6}{'1W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
+    unified_table += "-" * 71 + "\n"
 
     for idx, row in df.iterrows():
         rank = idx + 1
         ticker = row['ticker']
         
-        prev_info = prev_history.get(ticker, {})
-        prev_rank = prev_info.get("rank")
-        prev_quad = prev_info.get("quadrant")
+        item_hist = prev_history.get(ticker, {})
+        past_ranks = item_hist.get('ranks', [])
+        past_quads = item_hist.get('quadrants', [])
+        prev_rank = past_ranks[-1] if past_ranks else None
+        prev_quad = past_quads[-1] if past_quads else None
         
         change_str = format_rank_change(rank, prev_rank)
         
@@ -197,23 +224,56 @@ def send_to_discord(df, prev_history):
         emoji = row['quad_emoji']
         quad = row['quadrant']
 
+        # 計算歷史排名品質指標
+        full_ranks = past_ranks + [rank]
+        full_quads = past_quads + [quad]
+        
+        ranks_5d = full_ranks[-5:]
+        avg_rank_5d = sum(ranks_5d) / len(ranks_5d) if ranks_5d else rank
+        
+        # 排名波動度（標準差）
+        rank_std = np.std(ranks_5d) if len(ranks_5d) > 1 else 0.0
+        
+        # 計算 Leading 持續天數
+        leading_days = 0
+        for q in reversed(full_quads):
+            if q == "Leading":
+                leading_days += 1
+            else:
+                break
+
+        # 品質與狀態判定
+        if quad == "Leading":
+            if leading_days <= 2:
+                quality_str = "剛轉強⭐"
+            else:
+                quality_str = f"長期強({leading_days}天)"
+        elif rank_std > 3.5:
+            quality_str = "忽上忽下⚠️"
+        elif avg_rank_5d < rank - 1:
+            quality_str = "穩步上升📈"
+        elif avg_rank_5d > rank + 1:
+            quality_str = "回落中📉"
+        else:
+            quality_str = "橫盤穩定"
+
         has_rotated = False
         if prev_quad and prev_quad != quad:
             has_rotated = True
             prev_emoji = get_quadrant_emoji(prev_quad)
             rotations.append(f"• **{ticker} ({name})**: {prev_emoji} `{prev_quad}` ➔ {emoji} `{quad}`")
 
-        r1w = f"{row['rel_1w']:+.1f}%"
-        r2w = f"{row['rel_2w']:+.1f}%"
-        r1m = f"{row['rel_1m']:+.1f}%"
-        score_str = f"{row['score']:.1f}"
+        r1d = f"{row['rel_1d']:+.1f}%"
+        r5d = f"{row['rel_5d']:+.1f}%"
+        r21d = f"{row['rel_21d']:+.1f}%"
+        avg_5d_str = f"{avg_rank_5d:.1f}"
 
         if has_rotated:
             quad_display = f"{emoji}{quad[:6]}⭐"
         else:
             quad_display = f"{emoji}{quad:<9}"
 
-        unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<6}{quad_display:<11}{r1w:<7}{r2w:<7}{r1m:<7}{score_str:<8}\n"
+        unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<6}{quad_display:<11}{r1d:<6}{r5d:<6}{r21d:<6}{avg_5d_str:<5}{quality_str:<9}\n"
 
     # 📊 各象限分佈統計
     quad_counts = df['quadrant'].value_counts()
@@ -235,23 +295,23 @@ def send_to_discord(df, prev_history):
         rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n*今日暫無板塊發生跨象限轉倉.*\n\n"
 
     embed = {
-        "title": "📊 美股 25 大板塊與主題綜合量化監控表",
+        "title": "📊 美股 25 大板塊與主題品質監控系統",
         "description": (
             f"**🏆 當前領頭羊象限：** `{top_quadrant}`\n\n"
             f"{rotation_section}"
-            f"**【板塊總覽與 RRG 評分清單 (⭐ 代表今日有象限轉倉)】**\n```text\n{unified_table}\n```\n"
+            f"**【板塊總覽與排名品質清單 (⭐ 代表轉倉/剛轉強)】**\n```text\n{unified_table}\n```\n"
             f"{market_breadth_summary}"
         ),
         "color": embed_color,
         "footer": {
-            "text": "GitHub Actions 自動發送 • 綜合 RRG 與相對表現模型"
+            "text": "GitHub Actions 自動發送 • 多週期動能與排名品質模型"
         }
     }
 
     payload = {"embeds": [embed]}
     response = requests.post(webhook_url, json=payload)
     if response.status_code == 204:
-        print("成功發送綜合版塊報告到 Discord！")
+        print("成功發送品質監控報告到 Discord！")
     else:
         print(f"發送失敗，狀態碼：{response.status_code}, 回應：{response.text}")
 
