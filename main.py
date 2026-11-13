@@ -33,58 +33,60 @@ BENCHMARK = 'SPY'
 HISTORY_FILE = 'history.json'
 tickers = list(SECTORS.keys()) + [BENCHMARK]
 
-def load_previous_ranks():
-    """讀取昨日儲存的排名紀錄"""
+def load_previous_history():
+    """讀取昨日儲存的歷史紀錄（包含排名與象限）"""
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+                # 兼容舊版純數字格式
+                if data and isinstance(list(data.values())[0], int):
+                    return {k: {"rank": v, "quadrant": None} for k, v in data.items()}
+                return data
         except Exception as e:
             print(f"讀取歷史紀錄失敗：{e}")
     return {}
 
-def save_current_ranks(df):
-    """將今日最新排名寫入 history.json"""
-    ranks = {row['ticker']: idx + 1 for idx, row in df.iterrows()}
+def save_current_history(df):
+    """將今日最新排名與象限寫入 history.json"""
+    history_data = {}
+    for idx, row in df.iterrows():
+        history_data[row['ticker']] = {
+            "rank": idx + 1,
+            "quadrant": row['quadrant']
+        }
     with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
-        json.dump(ranks, f, ensure_ascii=False, indent=2)
+        json.dump(history_data, f, ensure_ascii=False, indent=2)
 
 def calculate_rrg_and_rs():
     print("正在下載數據並計算 RRG 四象限及回報率...")
-    # 需要下載較長歷史數據（6個月）以計算平滑均線
     data = yf.download(tickers, period='6mo', progress=False)['Close']
     
     if isinstance(data, pd.Series):
         raise ValueError("下載數據出錯，請檢查網絡或 Ticker")
 
-    # 1. 計算相對強度比值 (Ratio = Sector / SPY)
     ratios = pd.DataFrame()
     for t in SECTORS.keys():
         if t in data.columns:
             ratios[t] = data[t] / data[BENCHMARK]
 
-    # 2. 計算 RRG 核心指標 (RS-Ratio & RS-Momentum)
     rs_ratio = pd.DataFrame()
     rs_momentum = pd.DataFrame()
 
     for t in SECTORS.keys():
         if t in ratios.columns:
             series = ratios[t]
-            # 標準 RRG 邏輯：以 10日 與 50日 移動平均比率作為 RS-Ratio 基準 (中心值 100)
             sma_short = series.rolling(window=10).mean()
             sma_long = series.rolling(window=50).mean()
             rs_ratio[t] = 100 * (sma_short / sma_long)
             
-            # RS-Momentum：RS-Ratio 的近期動能變化率
             mom_short = rs_ratio[t].rolling(window=5).mean()
             mom_long = rs_ratio[t].rolling(window=20).mean()
             rs_momentum[t] = 100 * (mom_short / mom_long)
 
-    # 取得最新一天的數值
     latest_ratio = rs_ratio.iloc[-1]
     latest_mom = rs_momentum.iloc[-1]
 
-    # 各週期超額回報計算 (1W=5d, 2W=10d, 1M=21d)
     days_1w, days_2w, days_1m = 5, 10, 21
     p_end = data.iloc[-1]
     
@@ -102,7 +104,6 @@ def calculate_rrg_and_rs():
             r_ratio = float(latest_ratio.get(t, 100.0))
             r_mom = float(latest_mom.get(t, 100.0))
 
-            # 四象限判斷邏輯
             if r_ratio >= 100 and r_mom >= 100:
                 quadrant = "Leading"
                 quad_emoji = "🟢"
@@ -128,13 +129,12 @@ def calculate_rrg_and_rs():
                 'quad_emoji': quad_emoji
             })
 
-    # 綜合排名主要依據 1 個月超額回報排序
     df_rs = pd.DataFrame(results)
     df_rs = df_rs.sort_values(by='excess_1m', ascending=False).reset_index(drop=True)
     return df_rs
 
 def format_rank_change(current_rank, prev_rank):
-    """計算名次變化並格式化顯示"""
+    """計算名次變化"""
     if prev_rank is None:
         return "NEW"
     diff = prev_rank - current_rank
@@ -145,73 +145,97 @@ def format_rank_change(current_rank, prev_rank):
     else:
         return "─"
 
-def send_to_discord(df, prev_ranks):
+def get_quadrant_emoji(quad):
+    mapping = {
+        "Leading": "🟢",
+        "Improving": "🔵",
+        "Weakening": "🟡",
+        "Lagging": "🔴"
+    }
+    return mapping.get(quad, "⚪")
+
+def send_to_discord(df, prev_history):
     webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
     if not webhook_url:
         print("錯誤：未設定 DISCORD_WEBHOOK_URL 環境變數")
         return
 
-    # 決定 Embed 主色 (根據第一名板塊的象限動態變色)
     top_quadrant = df.iloc[0]['quadrant'] if not df.empty else "Leading"
     color_map = {
-        "Leading": 3066993,     # 🟢 綠色 (#2ECC71)
-        "Improving": 3447003,   # 🔵 藍色 (#3498DB)
-        "Weakening": 15844367,  # 🟡 黃色 (#F1C40F)
-        "Lagging": 15158332     # 🔴 紅色 (#E74C3C)
+        "Leading": 3066993,     # 🟢 綠色
+        "Improving": 3447003,   # 🔵 藍色
+        "Weakening": 15844367,  # 🟡 黃色
+        "Lagging": 15158332     # 🔴 紅色
     }
     embed_color = color_map.get(top_quadrant, 3447003)
 
-    # 建立三大區塊的純文字表格
-    # 1. 綜合排名（含 emoji + 象限）
+    # 追蹤跨象限轉倉清單
+    rotations = []
+
     table_1 = f"{'名':<3}{'變':<4}{'ETF':<6}{'板塊名稱':<8}{'RRG 象限':<12}\n"
     table_1 += "-" * 38 + "\n"
     
-    # 2. 各週期 RS 細節
     table_2 = f"{'ETF':<6}{'1W超額':<8}{'2W超額':<8}{'1M超額':<8}\n"
     table_2 += "-" * 32 + "\n"
     
-    # 3. RRG 數值
     table_3 = f"{'ETF':<6}{'RS-Ratio':<10}{'RS-Momentum':<12}\n"
     table_3 += "-" * 30 + "\n"
 
     for idx, row in df.iterrows():
         rank = idx + 1
         ticker = row['ticker']
-        prev_rank = prev_ranks.get(ticker)
+        
+        # 獲取昨日歷史資料
+        prev_info = prev_history.get(ticker, {})
+        prev_rank = prev_info.get("rank")
+        prev_quad = prev_info.get("quadrant")
+        
         change_str = format_rank_change(rank, prev_rank)
         
         name = row['name']
         emoji = row['quad_emoji']
         quad = row['quadrant']
-        
+
+        # 檢測是否有發生跨象限轉倉
+        if prev_quad and prev_quad != quad:
+            prev_emoji = get_quadrant_emoji(prev_quad)
+            rotations.append(f"• **{ticker} ({name})**: {prev_emoji} `{prev_quad}` ➔ {emoji} `{quad}`")
+
         table_1 += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<8}{emoji} {quad:<8}\n"
         table_2 += f"{ticker:<6}{row['excess_1w']:+6.2f}% {row['excess_2w']:+6.2f}% {row['excess_1m']:+6.2f}%\n"
         table_3 += f"{ticker:<6}{row['rs_ratio']:<10.2f}{row['rs_momentum']:<12.2f}\n"
 
-    # 組裝 Discord Embed
+    # 組裝轉倉快訊文字
+    rotation_section = ""
+    if rotations:
+        rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n" + "\n".join(rotations) + "\n\n"
+    else:
+        rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n*今日暫無板塊發生跨象限轉倉.*\n\n"
+
     embed = {
-        "title": "📊 美股 20 大板塊 RRG 四象限與動能分析",
+        "title": "📊 美格 20 大板塊 RRG 四象限動能與轉倉追蹤",
         "description": (
             f"**🏆 當前領頭羊象限：** `{top_quadrant}`\n\n"
+            f"{rotation_section}"
             f"**【1. 綜合排名與象限】**\n```text\n{table_1}\n```\n"
             f"**【2. 各週期超額回報】**\n```text\n{table_2}\n```\n"
             f"**【3. RRG 核心數值 (基准100)】**\n```text\n{table_3}\n```"
         ),
         "color": embed_color,
         "footer": {
-            "text": "GitHub Actions 自動發送 • RRG 四象限模型每日收盤更新"
+            "text": "GitHub Actions 自動發送 • RRG 轉倉追蹤模型"
         }
     }
 
     payload = {"embeds": [embed]}
     response = requests.post(webhook_url, json=payload)
     if response.status_code == 204:
-        print("成功發送 RRG 報告到 Discord！")
+        print("成功發送含轉倉追蹤的 RRG 報告到 Discord！")
     else:
         print(f"發送失敗，狀態碼：{response.status_code}, 回應：{response.text}")
 
 if __name__ == "__main__":
-    prev_ranks = load_previous_ranks()
+    prev_history = load_previous_history()
     df_result = calculate_rrg_and_rs()
-    send_to_discord(df_result, prev_ranks)
-    save_current_ranks(df_result)
+    send_to_discord(df_result, prev_history)
+    save_current_history(df_result)
