@@ -19,11 +19,11 @@
     "rank": 5,
     "quadrant": "Leading"
   },
-  "XLRE": {
+  "IYT": {
     "rank": 6,
     "quadrant": "Leading"
   },
-  "IYT": {
+  "XRT": {
     "rank": 7,
     "quadrant": "Leading"
   },
@@ -31,71 +31,71 @@
     "rank": 8,
     "quadrant": "Leading"
   },
-  "XRT": {
+  "XLU": {
     "rank": 9,
     "quadrant": "Leading"
   },
-  "XLU": {
+  "KRE": {
     "rank": 10,
     "quadrant": "Leading"
   },
-  "KRE": {
-    "rank": 11,
-    "quadrant": "Leading"
-  },
   "UFO": {
-    "rank": 12,
+    "rank": 11,
     "quadrant": "Improving"
   },
   "XLB": {
-    "rank": 13,
+    "rank": 12,
     "quadrant": "Leading"
   },
   "ITA": {
-    "rank": 14,
+    "rank": 13,
     "quadrant": "Leading"
   },
   "XLI": {
-    "rank": 15,
+    "rank": 14,
     "quadrant": "Leading"
   },
   "XLC": {
-    "rank": 16,
+    "rank": 15,
     "quadrant": "Improving"
   },
   "IGV": {
-    "rank": 17,
+    "rank": 16,
     "quadrant": "Lagging"
   },
   "CIBR": {
-    "rank": 18,
+    "rank": 17,
     "quadrant": "Lagging"
   },
   "XLE": {
-    "rank": 19,
+    "rank": 18,
     "quadrant": "Lagging"
   },
   "XME": {
-    "rank": 20,
+    "rank": 19,
     "quadrant": "Improving"
   },
   "XLK": {
-    "rank": 21,
+    "rank": 20,
     "quadrant": "Lagging"
   },
   "DRAM": {
-    "rank": 22,
+    "rank": 21,
     "quadrant": "Lagging"
   },
   "SMH": {
-    "rank": 23,
+    "rank": 22,
     "quadrant": "Lagging"
   },
   "WGMI": {
-    "rank": 24,
+    "rank": 23,
     "quadrant": "Lagging"
   },
   "LYTE": {
+    "rank": 24,
+    "quadrant": "Lagging"
+  },
+  "XLRE": {
     "rank": 25,
     "quadrant": "Lagging"
   }
