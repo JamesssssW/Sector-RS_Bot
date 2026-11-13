@@ -27,11 +27,11 @@
     "rank": 7,
     "quadrant": "Leading"
   },
-  "XRT": {
+  "XBI": {
     "rank": 8,
     "quadrant": "Leading"
   },
-  "XBI": {
+  "XRT": {
     "rank": 9,
     "quadrant": "Leading"
   },
@@ -39,63 +39,63 @@
     "rank": 10,
     "quadrant": "Leading"
   },
-  "UFO": {
+  "KRE": {
     "rank": 11,
+    "quadrant": "Leading"
+  },
+  "UFO": {
+    "rank": 12,
     "quadrant": "Improving"
   },
   "XLB": {
-    "rank": 12,
-    "quadrant": "Leading"
-  },
-  "ITA": {
     "rank": 13,
     "quadrant": "Leading"
   },
-  "XLI": {
+  "ITA": {
     "rank": 14,
     "quadrant": "Leading"
   },
-  "XLC": {
+  "XLI": {
     "rank": 15,
+    "quadrant": "Leading"
+  },
+  "XLC": {
+    "rank": 16,
     "quadrant": "Improving"
   },
   "IGV": {
-    "rank": 16,
-    "quadrant": "Lagging"
-  },
-  "CIBR": {
     "rank": 17,
     "quadrant": "Lagging"
   },
-  "XLE": {
+  "CIBR": {
     "rank": 18,
     "quadrant": "Lagging"
   },
-  "XME": {
+  "XLE": {
     "rank": 19,
+    "quadrant": "Lagging"
+  },
+  "XME": {
+    "rank": 20,
     "quadrant": "Improving"
   },
   "XLK": {
-    "rank": 20,
-    "quadrant": "Lagging"
-  },
-  "DRAM": {
     "rank": 21,
     "quadrant": "Lagging"
   },
-  "SMH": {
+  "DRAM": {
     "rank": 22,
     "quadrant": "Lagging"
   },
-  "WGMI": {
+  "SMH": {
     "rank": 23,
     "quadrant": "Lagging"
   },
-  "LYTE": {
+  "WGMI": {
     "rank": 24,
     "quadrant": "Lagging"
   },
-  "KRE": {
+  "LYTE": {
     "rank": 25,
     "quadrant": "Lagging"
   }
