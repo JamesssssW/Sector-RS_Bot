@@ -31,7 +31,7 @@ SECTORS = {
     'XME': '金屬礦業',
     # 前沿主題 / 賽道
     'CIBR': '網絡安全',
-    'DRAM': '記憶體',
+    'DRAM': 'DRAM記憶體',
     'UFO': '太空探索',
     'LYTE': '光通信',
     'WGMI': '加密挖礦'
@@ -194,7 +194,10 @@ def send_to_discord(df, prev_history):
         emoji = row['quad_emoji']
         quad = row['quadrant']
 
+        # 檢測是否有發生跨象限轉倉
+        has_rotated = False
         if prev_quad and prev_quad != quad:
+            has_rotated = True
             prev_emoji = get_quadrant_emoji(prev_quad)
             rotations.append(f"• **{ticker} ({name})**: {prev_emoji} `{prev_quad}` ➔ {emoji} `{quad}`")
 
@@ -204,8 +207,9 @@ def send_to_discord(df, prev_history):
         ratio_str = f"{row['rs_ratio']:.1f}"
         mom_str = f"{row['rs_momentum']:.1f}"
 
-        if quad == "Leading":
-            quad_display = "🟢Lead ⭐"
+        # ⭐️ 只有當象限發生變化（轉倉）時才加上星號
+        if has_rotated:
+            quad_display = f"{emoji}{quad[:6]}⭐"
         else:
             quad_display = f"{emoji}{quad:<9}"
 
@@ -235,7 +239,7 @@ def send_to_discord(df, prev_history):
         "description": (
             f"**🏆 當前領頭羊象限：** `{top_quadrant}`\n\n"
             f"{rotation_section}"
-            f"**【板塊總覽與 RRG 動能清單 (⭐ 代表 Leading 領先區)】**\n```text\n{unified_table}\n```\n"
+            f"**【板塊總覽與 RRG 動能清單 (⭐ 代表今日有象限轉倉)】**\n```text\n{unified_table}\n```\n"
             f"{market_breadth_summary}"
         ),
         "color": embed_color,
