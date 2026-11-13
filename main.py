@@ -107,12 +107,9 @@ def send_to_discord(df, prev_ranks):
         print("錯誤：未設定 DISCORD_WEBHOOK_URL 環境變數")
         return
 
-    message = "📊 **美股板塊相對強度 (RS) 每日排行榜**\n"
-    message += "基準：SPY | 比較周期：近 1M (21日) & 近 3M (63日) 超額回報\n"
-    message += "```text\n"
-    # 調整表格標題與欄位闊度
-    message += f"{'排名':<4}{'變化':<6}{'ETF':<6}{'板塊名稱':<10}{'1M超額':<9}{'3M超額':<9}\n"
-    message += "-" * 50 + "\n"
+    # 1. 組合表格內容 (使用 Code Block 確保排版對齊)
+    table_content = f"{'排名':<4}{'變化':<6}{'ETF':<6}{'板塊名稱':<10}{'1M超額':<9}{'3M超額':<9}\n"
+    table_content += "-" * 50 + "\n"
     
     for idx, row in df.iterrows():
         rank = idx + 1
@@ -123,14 +120,25 @@ def send_to_discord(df, prev_ranks):
         name = row['name']
         exc_1m = f"{row['excess_1m']:+.2f}%"
         exc_3m = f"{row['excess_3m']:+.2f}%"
-        message += f"{rank:<4}{change_str:<6}{ticker:<6}{name:<10}{exc_1m:<9}{exc_3m:<9}\n"
-        
-    message += "```"
+        table_content += f"{rank:<4}{change_str:<6}{ticker:<6}{name:<10}{exc_1m:<9}{exc_3m:<9}\n"
 
-    payload = {"content": message}
+    # 2. 建立 Discord Embed 卡片結構
+    embed = {
+        "title": "📊 美股板塊相對強度 (RS) 每日排行榜",
+        "description": f"基準：SPY | 比較周期：近 1M (21日) & 近 3M (63日) 超額回報\n```text\n{table_content}\n```",
+        "color": 3447003,  # 顏色邊框：這裡使用精緻的科技藍色 (十進位色碼，可自行更改)
+        "footer": {
+            "text": "GitHub Actions 自動發送 • 每日美股收盤更新"
+        }
+    }
+
+    payload = {
+        "embeds": [embed]
+    }
+    
     response = requests.post(webhook_url, json=payload)
     if response.status_code == 204:
-        print("成功發送訊息到 Discord！")
+        print("成功發送 Embed 卡片到 Discord！")
     else:
         print(f"發送失敗，狀態碼：{response.status_code}, 回應：{response.text}")
 
