@@ -29,9 +29,9 @@ SECTORS = {
     'IYT': '運輸',
     'ITA': '國防航天',
     'XME': '金屬礦業',
-    # 前沿主題 / 賽道
+    # 前沿主題 / 賽道 (DRAM 標籤已簡化為「記憶體」)
     'CIBR': '網絡安全',
-    'DRAM': 'DRAM記憶體',
+    'DRAM': '記憶體',
     'UFO': '太空探索',
     'LYTE': '光通信',
     'WGMI': '加密挖礦'
@@ -66,7 +66,7 @@ def save_current_history(df):
         json.dump(history_data, f, ensure_ascii=False, indent=2)
 
 def calculate_rrg_and_rs():
-    print("正在下載 25 個板塊數據並計算 RRG 四象限及相對表現...")
+    print("正在下載 25 個板塊數據並計算 RRG 評分及相對表現...")
     data = yf.download(tickers, period='6mo', progress=False)['Close']
     
     if isinstance(data, pd.Series):
@@ -111,6 +111,9 @@ def calculate_rrg_and_rs():
             r_ratio = float(latest_ratio.get(t, 100.0))
             r_mom = float(latest_mom.get(t, 100.0))
 
+            # 計算綜合 RRG 評分 (結合 RS-Ratio 與 RS-Momentum)
+            score = (r_ratio + r_mom) / 2
+
             if r_ratio >= 100 and r_mom >= 100:
                 quadrant = "Leading"
                 quad_emoji = "🟢"
@@ -130,8 +133,7 @@ def calculate_rrg_and_rs():
                 'rel_1w': e1w,
                 'rel_2w': e2w,
                 'rel_1m': e1m,
-                'rs_ratio': r_ratio,
-                'rs_momentum': r_mom,
+                'score': score,
                 'quadrant': quadrant,
                 'quad_emoji': quad_emoji
             })
@@ -177,8 +179,9 @@ def send_to_discord(df, prev_history):
 
     rotations = []
 
-    unified_table = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<6}{'象限':<11}{'1W相':<7}{'2W相':<7}{'1M相':<7}{'Ratio':<7}{'Momentum':<8}\n"
-    unified_table += "-" * 73 + "\n"
+    # 綜合大表格 (名稱欄位設為 6 個字元寬度，剛好容納「記憶體」等中文字)
+    unified_table = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<6}{'象限':<11}{'1W相':<7}{'2W相':<7}{'1M相':<7}{'評分':<8}\n"
+    unified_table += "-" * 65 + "\n"
 
     for idx, row in df.iterrows():
         rank = idx + 1
@@ -194,7 +197,6 @@ def send_to_discord(df, prev_history):
         emoji = row['quad_emoji']
         quad = row['quadrant']
 
-        # 檢測是否有發生跨象限轉倉
         has_rotated = False
         if prev_quad and prev_quad != quad:
             has_rotated = True
@@ -204,18 +206,16 @@ def send_to_discord(df, prev_history):
         r1w = f"{row['rel_1w']:+.1f}%"
         r2w = f"{row['rel_2w']:+.1f}%"
         r1m = f"{row['rel_1m']:+.1f}%"
-        ratio_str = f"{row['rs_ratio']:.1f}"
-        mom_str = f"{row['rs_momentum']:.1f}"
+        score_str = f"{row['score']:.1f}"
 
-        # ⭐️ 只有當象限發生變化（轉倉）時才加上星號
         if has_rotated:
             quad_display = f"{emoji}{quad[:6]}⭐"
         else:
             quad_display = f"{emoji}{quad:<9}"
 
-        unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<6}{quad_display:<11}{r1w:<7}{r2w:<7}{r1m:<7}{ratio_str:<7}{mom_str:<8}\n"
+        unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<6}{quad_display:<11}{r1w:<7}{r2w:<7}{r1m:<7}{score_str:<8}\n"
 
-    # 📊 計算各象限分佈數量
+    # 📊 各象限分佈統計
     quad_counts = df['quadrant'].value_counts()
     count_leading = quad_counts.get("Leading", 0)
     count_improving = quad_counts.get("Improving", 0)
@@ -239,7 +239,7 @@ def send_to_discord(df, prev_history):
         "description": (
             f"**🏆 當前領頭羊象限：** `{top_quadrant}`\n\n"
             f"{rotation_section}"
-            f"**【板塊總覽與 RRG 動能清單 (⭐ 代表今日有象限轉倉)】**\n```text\n{unified_table}\n```\n"
+            f"**【板塊總覽與 RRG 評分清單 (⭐ 代表今日有象限轉倉)】**\n```text\n{unified_table}\n```\n"
             f"{market_breadth_summary}"
         ),
         "color": embed_color,
