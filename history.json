@@ -1,22 +1,26 @@
 {
-  "XLV": {
+  "XHB": {
     "ranks": [
+      1,
       2,
       1
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
     "rank": 1,
     "quadrant": "Leading"
   },
-  "XHB": {
+  "XLV": {
     "ranks": [
+      2,
       1,
       2
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
@@ -26,9 +30,11 @@
   "XLP": {
     "ranks": [
       3,
+      3,
       3
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
@@ -38,9 +44,11 @@
   "XLF": {
     "ranks": [
       4,
+      4,
       4
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
@@ -50,45 +58,53 @@
   "XLY": {
     "ranks": [
       5,
+      5,
       5
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
     "rank": 5,
     "quadrant": "Leading"
   },
-  "XLRE": {
+  "XLU": {
     "ranks": [
-      6,
+      7,
+      25,
       6
     ],
     "quadrants": [
       "Leading",
+      "Lagging",
       "Leading"
     ],
     "rank": 6,
     "quadrant": "Leading"
   },
-  "KRE": {
+  "XLRE": {
     "ranks": [
-      8,
+      6,
+      6,
       7
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
     "rank": 7,
     "quadrant": "Leading"
   },
-  "IYT": {
+  "KRE": {
     "ranks": [
-      9,
+      8,
+      7,
       8
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
@@ -98,9 +114,11 @@
   "XRT": {
     "ranks": [
       10,
+      9,
       9
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
@@ -110,190 +128,222 @@
   "ITA": {
     "ranks": [
       11,
+      10,
       10
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
     "rank": 10,
     "quadrant": "Leading"
   },
-  "XLB": {
+  "IYT": {
     "ranks": [
-      12,
+      9,
+      8,
       11
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
     "rank": 11,
     "quadrant": "Leading"
   },
-  "UFO": {
+  "XLB": {
     "ranks": [
-      13,
+      12,
+      11,
       12
     ],
     "quadrants": [
-      "Improving",
-      "Improving"
-    ],
-    "rank": 12,
-    "quadrant": "Improving"
-  },
-  "XBI": {
-    "ranks": [
-      14,
-      13
-    ],
-    "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
-    "rank": 13,
+    "rank": 12,
     "quadrant": "Leading"
+  },
+  "UFO": {
+    "ranks": [
+      13,
+      12,
+      13
+    ],
+    "quadrants": [
+      "Improving",
+      "Improving",
+      "Improving"
+    ],
+    "rank": 13,
+    "quadrant": "Improving"
   },
   "XLI": {
     "ranks": [
       15,
+      14,
       14
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading"
     ],
     "rank": 14,
     "quadrant": "Leading"
   },
-  "XLE": {
+  "XBI": {
     "ranks": [
-      16,
+      14,
+      13,
       15
     ],
     "quadrants": [
+      "Leading",
+      "Leading",
+      "Leading"
+    ],
+    "rank": 15,
+    "quadrant": "Leading"
+  },
+  "XLE": {
+    "ranks": [
+      16,
+      15,
+      16
+    ],
+    "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging"
     ],
-    "rank": 15,
+    "rank": 16,
     "quadrant": "Lagging"
   },
   "XLC": {
     "ranks": [
       17,
-      16
-    ],
-    "quadrants": [
-      "Improving",
-      "Improving"
-    ],
-    "rank": 16,
-    "quadrant": "Improving"
-  },
-  "XME": {
-    "ranks": [
-      18,
+      16,
       17
     ],
     "quadrants": [
+      "Improving",
       "Improving",
       "Improving"
     ],
     "rank": 17,
     "quadrant": "Improving"
   },
-  "IGV": {
+  "XME": {
     "ranks": [
-      19,
+      18,
+      17,
       18
     ],
     "quadrants": [
-      "Lagging",
-      "Lagging"
+      "Improving",
+      "Improving",
+      "Improving"
     ],
     "rank": 18,
-    "quadrant": "Lagging"
+    "quadrant": "Improving"
   },
-  "CIBR": {
+  "IGV": {
     "ranks": [
-      20,
+      19,
+      18,
       19
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging"
     ],
     "rank": 19,
     "quadrant": "Lagging"
   },
-  "XLK": {
+  "CIBR": {
     "ranks": [
-      21,
+      20,
+      19,
       20
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging"
     ],
     "rank": 20,
     "quadrant": "Lagging"
   },
-  "SMH": {
+  "XLK": {
     "ranks": [
-      22,
+      21,
+      20,
       21
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging"
     ],
     "rank": 21,
     "quadrant": "Lagging"
   },
-  "DRAM": {
+  "SMH": {
     "ranks": [
-      23,
+      22,
+      21,
       22
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging"
     ],
     "rank": 22,
     "quadrant": "Lagging"
   },
-  "WGMI": {
+  "DRAM": {
     "ranks": [
-      24,
+      23,
+      22,
       23
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging"
     ],
     "rank": 23,
     "quadrant": "Lagging"
   },
-  "LYTE": {
+  "WGMI": {
     "ranks": [
-      25,
+      24,
+      23,
       24
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging"
     ],
     "rank": 24,
     "quadrant": "Lagging"
   },
-  "XLU": {
+  "LYTE": {
     "ranks": [
-      7,
+      25,
+      24,
       25
     ],
     "quadrants": [
-      "Leading",
+      "Lagging",
+      "Lagging",
       "Lagging"
     ],
     "rank": 25,
