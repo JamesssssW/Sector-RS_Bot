@@ -106,10 +106,15 @@ def calculate_rrg_and_rs():
     print(f"正在下載 {len(SECTORS)} 個板塊 1 年數據並計算大市環境與多週期動能...")
     
     session = requests.Session()
+    # 偽裝成真實瀏覽器，減少被 Yahoo Finance 429 封鎖的機率
+    session.headers.update({
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    })
+    
     retries = Retry(
-        total=3,
-        backoff_factor=2,
-        status_forcelist=[500, 502, 503, 504],
+        total=5,                # 增加重試次數到 5 次
+        backoff_factor=5,       # 每次重試間隔拉長 (5s, 10s, 20s...)
+        status_forcelist=[429, 500, 502, 503, 504], # 納入 429 狀態碼自動重試
         raise_on_status=False
     )
     adapter = HTTPAdapter(max_retries=retries)
@@ -123,16 +128,21 @@ def calculate_rrg_and_rs():
     session.request = request_with_timeout
 
     try:
-        # ⚠️ 必須改為 1y 才能確保有足夠數據計算 200 日均線
+        # 使用下載並覆蓋 session
         data = yf.download(tickers, period='1y', session=session, progress=False)['Close']
     except Exception as e:
         raise RuntimeError(f"Yahoo Finance 數據下載失敗或連線逾時: {e}")
     
-    if isinstance(data, pd.Series):
-        raise ValueError("下載數據出錯，返回的格式異常，請檢查 Ticker")
+    # 🛡️ 防呆檢查：如果下載回來的是空的，或者 Series 格式異常，直接拋出明確錯誤
+    if data is None or isinstance(data, pd.Series) or data.empty:
+        raise ValueError("❌ 錯誤：Yahoo Finance 下載返回的數據為空，可能被 Rate Limit (429) 封鎖，請稍後再試。")
+
+    # 檢查是否有足夠的歷史數據來計算 200 日均線
+    if BENCHMARK not in data.columns or len(data) < 200:
+        raise ValueError(f"❌ 錯誤：下載的 {BENCHMARK} 數據不足 200 筆（目前只有 {len(data)} 筆），無法計算 SMA200。")
 
     # 🌐 計算 SPY 大市環境 (SMA200)
-    spy_series = data[BENCHMARK]
+    spy_series = data[BENCHMARK].dropna()
     spy_sma200 = spy_series.rolling(window=200).mean().iloc[-1]
     spy_latest = spy_series.iloc[-1]
     
