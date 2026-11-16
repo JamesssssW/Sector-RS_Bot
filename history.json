@@ -1,13 +1,15 @@
 {
-  "XHB": {
+  "XLV": {
     "ranks": [
-      1,
       2,
       1,
-      1,
+      2,
+      2,
+      2,
       1
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -17,15 +19,17 @@
     "rank": 1,
     "quadrant": "Leading"
   },
-  "XLV": {
+  "XHB": {
     "ranks": [
-      2,
       1,
       2,
-      2,
+      1,
+      1,
+      1,
       2
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -41,9 +45,11 @@
       3,
       3,
       3,
+      3,
       3
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -53,15 +59,17 @@
     "rank": 3,
     "quadrant": "Leading"
   },
-  "XLF": {
+  "XLY": {
     "ranks": [
-      4,
-      4,
-      4,
-      4,
+      5,
+      5,
+      5,
+      5,
+      5,
       4
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -71,15 +79,17 @@
     "rank": 4,
     "quadrant": "Leading"
   },
-  "XLY": {
+  "XLRE": {
     "ranks": [
-      5,
-      5,
-      5,
-      5,
+      6,
+      6,
+      7,
+      7,
+      7,
       5
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -89,17 +99,19 @@
     "rank": 5,
     "quadrant": "Leading"
   },
-  "XLU": {
+  "XLF": {
     "ranks": [
-      7,
-      25,
-      6,
-      6,
+      4,
+      4,
+      4,
+      4,
+      4,
       6
     ],
     "quadrants": [
       "Leading",
-      "Lagging",
+      "Leading",
+      "Leading",
       "Leading",
       "Leading",
       "Leading"
@@ -107,34 +119,38 @@
     "rank": 6,
     "quadrant": "Leading"
   },
-  "XLRE": {
+  "IYT": {
     "ranks": [
-      6,
-      6,
-      7,
-      7,
+      9,
+      8,
+      11,
+      25,
+      11,
       7
     ],
     "quadrants": [
       "Leading",
       "Leading",
       "Leading",
+      "Lagging",
       "Leading",
       "Leading"
     ],
     "rank": 7,
     "quadrant": "Leading"
   },
-  "KRE": {
+  "XLU": {
     "ranks": [
-      8,
       7,
-      8,
-      8,
+      25,
+      6,
+      6,
+      6,
       8
     ],
     "quadrants": [
       "Leading",
+      "Lagging",
       "Leading",
       "Leading",
       "Leading",
@@ -143,15 +159,17 @@
     "rank": 8,
     "quadrant": "Leading"
   },
-  "XRT": {
+  "KRE": {
     "ranks": [
-      10,
-      9,
-      9,
-      9,
+      8,
+      7,
+      8,
+      8,
+      8,
       9
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -161,15 +179,17 @@
     "rank": 9,
     "quadrant": "Leading"
   },
-  "ITA": {
+  "XRT": {
     "ranks": [
-      11,
       10,
-      10,
-      10,
+      9,
+      9,
+      9,
+      9,
       10
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -179,40 +199,24 @@
     "rank": 10,
     "quadrant": "Leading"
   },
-  "IYT": {
+  "XBI": {
     "ranks": [
-      9,
-      8,
-      11,
-      25,
+      14,
+      13,
+      15,
+      14,
+      15,
       11
     ],
     "quadrants": [
       "Leading",
       "Leading",
       "Leading",
-      "Lagging",
+      "Leading",
+      "Leading",
       "Leading"
     ],
     "rank": 11,
-    "quadrant": "Leading"
-  },
-  "XLB": {
-    "ranks": [
-      12,
-      11,
-      12,
-      11,
-      12
-    ],
-    "quadrants": [
-      "Leading",
-      "Leading",
-      "Leading",
-      "Leading",
-      "Leading"
-    ],
-    "rank": 12,
     "quadrant": "Leading"
   },
   "UFO": {
@@ -221,27 +225,51 @@
       12,
       13,
       12,
-      13
+      13,
+      12
     ],
     "quadrants": [
+      "Improving",
       "Improving",
       "Improving",
       "Improving",
       "Improving",
       "Improving"
     ],
-    "rank": 13,
+    "rank": 12,
     "quadrant": "Improving"
   },
-  "XLI": {
+  "ITA": {
     "ranks": [
-      15,
-      14,
-      14,
-      13,
+      11,
+      10,
+      10,
+      10,
+      10,
+      13
+    ],
+    "quadrants": [
+      "Leading",
+      "Leading",
+      "Leading",
+      "Leading",
+      "Leading",
+      "Leading"
+    ],
+    "rank": 13,
+    "quadrant": "Leading"
+  },
+  "XLB": {
+    "ranks": [
+      12,
+      11,
+      12,
+      11,
+      12,
       14
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -251,15 +279,17 @@
     "rank": 14,
     "quadrant": "Leading"
   },
-  "XBI": {
+  "XLI": {
     "ranks": [
+      15,
+      14,
       14,
       13,
-      15,
       14,
       15
     ],
     "quadrants": [
+      "Leading",
       "Leading",
       "Leading",
       "Leading",
@@ -269,58 +299,24 @@
     "rank": 15,
     "quadrant": "Leading"
   },
-  "XLE": {
-    "ranks": [
-      16,
-      15,
-      16,
-      15,
-      16
-    ],
-    "quadrants": [
-      "Lagging",
-      "Lagging",
-      "Lagging",
-      "Lagging",
-      "Lagging"
-    ],
-    "rank": 16,
-    "quadrant": "Lagging"
-  },
   "XLC": {
     "ranks": [
       17,
       16,
       17,
       16,
-      17
+      17,
+      16
     ],
     "quadrants": [
       "Improving",
       "Improving",
       "Improving",
       "Improving",
-      "Improving"
-    ],
-    "rank": 17,
-    "quadrant": "Improving"
-  },
-  "XME": {
-    "ranks": [
-      18,
-      17,
-      18,
-      17,
-      18
-    ],
-    "quadrants": [
-      "Improving",
-      "Improving",
-      "Improving",
       "Improving",
       "Improving"
     ],
-    "rank": 18,
+    "rank": 16,
     "quadrant": "Improving"
   },
   "IGV": {
@@ -329,9 +325,51 @@
       18,
       19,
       18,
+      19,
+      17
+    ],
+    "quadrants": [
+      "Lagging",
+      "Lagging",
+      "Lagging",
+      "Lagging",
+      "Lagging",
+      "Lagging"
+    ],
+    "rank": 17,
+    "quadrant": "Lagging"
+  },
+  "CIBR": {
+    "ranks": [
+      20,
+      19,
+      20,
+      19,
+      20,
+      18
+    ],
+    "quadrants": [
+      "Lagging",
+      "Lagging",
+      "Lagging",
+      "Lagging",
+      "Lagging",
+      "Lagging"
+    ],
+    "rank": 18,
+    "quadrant": "Lagging"
+  },
+  "XLE": {
+    "ranks": [
+      16,
+      15,
+      16,
+      15,
+      16,
       19
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging",
       "Lagging",
@@ -341,23 +379,25 @@
     "rank": 19,
     "quadrant": "Lagging"
   },
-  "CIBR": {
+  "XME": {
     "ranks": [
-      20,
-      19,
-      20,
-      19,
+      18,
+      17,
+      18,
+      17,
+      18,
       20
     ],
     "quadrants": [
-      "Lagging",
-      "Lagging",
-      "Lagging",
-      "Lagging",
-      "Lagging"
+      "Improving",
+      "Improving",
+      "Improving",
+      "Improving",
+      "Improving",
+      "Improving"
     ],
     "rank": 20,
-    "quadrant": "Lagging"
+    "quadrant": "Improving"
   },
   "XLK": {
     "ranks": [
@@ -365,9 +405,11 @@
       20,
       21,
       20,
+      21,
       21
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging",
       "Lagging",
@@ -383,9 +425,11 @@
       21,
       22,
       21,
+      22,
       22
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging",
       "Lagging",
@@ -401,9 +445,11 @@
       22,
       23,
       22,
+      23,
       23
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging",
       "Lagging",
@@ -419,9 +465,11 @@
       23,
       24,
       23,
+      24,
       24
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging",
       "Lagging",
@@ -437,9 +485,11 @@
       24,
       25,
       24,
+      25,
       25
     ],
     "quadrants": [
+      "Lagging",
       "Lagging",
       "Lagging",
       "Lagging",
