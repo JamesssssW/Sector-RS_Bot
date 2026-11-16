@@ -3,11 +3,11 @@ name: Daily Sector RS Ranking
 on:
   schedule:
     # ⏱️ 港時 (HKT, UTC+8) 星期一至五排程：
-    # 1. 21:00 至 04:00 (UTC 13:00 - 20:00)：每小時運行一次 (開市時段)
+    # 1. 開市時段（香港時間 21:00 至 04:00，即 UTC 13:00 - 20:00）：每小時運行一次
     - cron: '0 13-20 * * 1-5'
     
-    # 2. 05:00 至 17:00 (UTC 21:00 - 09:00)：每 3 小時運行一次 (收市時段)
-    - cron: '0 21-9/3 * * 1-5'
+    # 2. 收市時段（香港時間 05:00, 08:00, 11:00, 14:00, 17:00，即 UTC 21,0,3,6,9 點）：每 3 小時運行一次
+    - cron: '0 21,0,3,6,9 * * 1-5'
 
   workflow_dispatch: # 支援手動觸發
 
@@ -44,7 +44,7 @@ jobs:
           git add history.json
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily sector RS history" && git push)
 
-      # 🚨 新增：當前面任何步驟（特別是 main.py）出錯時自動發送 Discord 警報
+      # 🚨 當執行出錯時自動發送 Discord 警報
       - name: Send Discord Failure Alert
         if: failure()
         env:
