@@ -4,8 +4,10 @@ import requests
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from requests.adapters import HTTPAdapter
+from urllib3.util import Retry
 
-# 定義 25 個美股板塊及重點主題 ETF
+# 定義 35 個美股板塊及重點主題 ETF
 SECTORS = {
     # 11 大傳統 GICS 板塊
     'XLK': '科技',
@@ -29,12 +31,23 @@ SECTORS = {
     'IYT': '運輸',
     'ITA': '國防航天',
     'XME': '金屬礦業',
-    # 前沿主題 / 賽道
+    # 前沿主題 / 賽道 (原 5 個)
     'CIBR': '網絡安全',
     'DRAM': '記憶體',
     'UFO': '太空探索',
     'LYTE': '光通信',
-    'WGMI': '加密挖礦'
+    'WGMI': '加密挖礦',
+    # 🆕 新增 10 個熱門行業與主題 ETF
+    'ICLN': '清潔能源',
+    'TAN': '太陽能',
+    'BOTZ': '機械人AI',
+    'SOCL': '社交媒體',
+    'FINX': '金融科技',
+    'COPX': '銅礦金屬',
+    'IHI': '醫療設備',
+    'SKYY': '雲端運算',
+    'PAVE': '基礎設施',
+    'JETS': '航空旅遊'
 }
 
 BENCHMARK = 'SPY'
@@ -47,7 +60,6 @@ def load_previous_history():
         try:
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                # 相容舊版簡單格式
                 if data and isinstance(list(data.values())[0], int):
                     new_data = {}
                     for k, v in data.items():
@@ -90,11 +102,35 @@ def save_current_history(df_result):
         json.dump(history_data, f, ensure_ascii=False, indent=2)
 
 def calculate_rrg_and_rs():
-    print("正在下載 25 個板塊數據並計算多週期動能與排名品質...")
-    data = yf.download(tickers, period='6mo', progress=False)['Close']
+    print(f"正在下載 {len(SECTORS)} 個板塊數據並計算多週期動能與排名品質（具備自動重試機制）...")
+    
+    # 建立具有 Retry 與 Timeout機制的 requests.Session
+    session = requests.Session()
+    retries = Retry(
+        total=3,                # 最多重試 3 次
+        backoff_factor=2,       # 每次重試間隔時間 (2s, 4s, 8s...)
+        status_forcelist=[500, 502, 503, 504], # 遇到伺服器錯誤時自動重試
+        raise_on_status=False
+    )
+    adapter = HTTPAdapter(max_retries=retries)
+    session.mount('https://', adapter)
+    session.mount('http://', adapter)
+    
+    # 強制為所有請求加入 30 秒 timeout，避免 GitHub Actions 無限卡死
+    original_request = session.request
+    def request_with_timeout(*args, **kwargs):
+        kwargs.setdefault('timeout', 30)
+        return original_request(*args, **kwargs)
+    session.request = request_with_timeout
+
+    try:
+        # 將客製化 session 傳入 yfinance
+        data = yf.download(tickers, period='6mo', session=session, progress=False)['Close']
+    except Exception as e:
+        raise RuntimeError(f"Yahoo Finance 數據下載失敗或連線逾時: {e}")
     
     if isinstance(data, pd.Series):
-        raise ValueError("下載數據出錯，請檢查網絡或 Ticker")
+        raise ValueError("下載數據出錯，返回的格式異常，請檢查 Ticker")
 
     ratios = pd.DataFrame()
     for t in SECTORS.keys():
@@ -163,7 +199,6 @@ def calculate_rrg_and_rs():
             })
 
     df_rs = pd.DataFrame(results)
-    # 初步按 1M 相對表現排序以得出今日暫定排名
     df_rs = df_rs.sort_values(by='rel_21d', ascending=False).reset_index(drop=True)
     return df_rs
 
@@ -204,9 +239,9 @@ def send_to_discord(df, prev_history):
 
     rotations = []
 
-    # 整合表格：名(3) 變(4) ETF(6) 名稱(6) 象限(11) 1D相(6) 1W相(6) 1M相(6) 5D均(5) 品質/狀態(9)
-    unified_table = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<6}{'象限':<11}{'1D相':<6}{'1W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
-    unified_table += "-" * 71 + "\n"
+    # 整合表格（名稱欄位闊度為 8）
+    unified_table = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<8}{'象限':<11}{'1D相':<6}{'1W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
+    unified_table += "-" * 73 + "\n"
 
     for idx, row in df.iterrows():
         rank = idx + 1
@@ -224,17 +259,14 @@ def send_to_discord(df, prev_history):
         emoji = row['quad_emoji']
         quad = row['quadrant']
 
-        # 計算歷史排名品質指標
         full_ranks = past_ranks + [rank]
         full_quads = past_quads + [quad]
         
         ranks_5d = full_ranks[-5:]
         avg_rank_5d = sum(ranks_5d) / len(ranks_5d) if ranks_5d else rank
         
-        # 排名波動度（標準差）
         rank_std = np.std(ranks_5d) if len(ranks_5d) > 1 else 0.0
         
-        # 計算 Leading 持續天數
         leading_days = 0
         for q in reversed(full_quads):
             if q == "Leading":
@@ -242,7 +274,6 @@ def send_to_discord(df, prev_history):
             else:
                 break
 
-        # 品質與狀態判定
         if quad == "Leading":
             if leading_days <= 2:
                 quality_str = "剛轉強⭐"
@@ -273,9 +304,8 @@ def send_to_discord(df, prev_history):
         else:
             quad_display = f"{emoji}{quad:<9}"
 
-        unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<6}{quad_display:<11}{r1d:<6}{r5d:<6}{r21d:<6}{avg_5d_str:<5}{quality_str:<9}\n"
+        unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<8}{quad_display:<11}{r1d:<6}{r5d:<6}{r21d:<6}{avg_5d_str:<5}{quality_str:<9}\n"
 
-    # 📊 各象限分佈統計
     quad_counts = df['quadrant'].value_counts()
     count_leading = quad_counts.get("Leading", 0)
     count_improving = quad_counts.get("Improving", 0)
@@ -295,7 +325,7 @@ def send_to_discord(df, prev_history):
         rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n*今日暫無板塊發生跨象限轉倉.*\n\n"
 
     embed = {
-        "title": "📊 美股 25 大板塊與主題品質監控系統",
+        "title": f"📊 美股 {len(df)} 大板塊與主題品質監控系統",
         "description": (
             f"**🏆 當前領頭羊象限：** `{top_quadrant}`\n\n"
             f"{rotation_section}"
