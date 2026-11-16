@@ -89,7 +89,7 @@ def save_current_history(df_result):
         ranks.append(curr_rank)
         quadrants.append(curr_quad)
         
-        # 🔄 改為保留最近 30 日數據
+        # 保留最近 30 日數據
         ranks = ranks[-30:]
         quadrants = quadrants[-30:]
         
@@ -104,7 +104,7 @@ def save_current_history(df_result):
         json.dump(history_data, f, ensure_ascii=False, indent=2)
 
 def calculate_rrg_and_rs():
-    print(f"正在下載 {len(SECTORS)} 個板塊 1 年數據並計算大市環境與多週期動能...")
+    print(f"正在下載 {len(SECTORS)} 個板塊 1 年數據並計算大市環境與多週期動能（短線高權重模式）...")
     
     session = requests.Session()
     session.headers.update({
@@ -189,6 +189,9 @@ def calculate_rrg_and_rs():
             e2w = (ret_2w[t] - spy_2w) * 100
             e1m = (ret_1m[t] - spy_1m) * 100
             
+            # ⚖️ 短線高爆發力加權綜合得分 (1D:10%, 5D:30%, 2W:30%, 1M:30%)
+            weighted_score = (e1d * 0.10) + (e5d * 0.30) + (e2w * 0.30) + (e1m * 0.30)
+            
             r_ratio = float(latest_ratio.get(t, 100.0))
             r_mom = float(latest_mom.get(t, 100.0))
 
@@ -213,6 +216,7 @@ def calculate_rrg_and_rs():
                 'rel_5d': e5d,
                 'rel_2w': e2w,
                 'rel_1m': e1m,
+                'weighted_score': weighted_score,
                 'r_ratio': r_ratio,
                 'r_mom': r_mom,
                 'quadrant': quadrant,
@@ -220,8 +224,8 @@ def calculate_rrg_and_rs():
             })
 
     df_rs = pd.DataFrame(results)
-    # 預設以 1M（21日）相對表現排序
-    df_rs = df_rs.sort_values(by='rel_1m', ascending=False).reset_index(drop=True)
+    # 🔄 依據新的加權綜合得分進行全局排序
+    df_rs = df_rs.sort_values(by='weighted_score', ascending=False).reset_index(drop=True)
     return df_rs, market_regime
 
 def format_rank_change(current_rank, prev_rank):
@@ -245,7 +249,6 @@ def get_quadrant_emoji(quad):
     return mapping.get(quad, "⚪")
 
 def generate_table_string(sub_df, prev_history):
-    # 更新表頭：1D相 | 5D相 | 2W相 | 1M相
     table_str = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<8}{'象限':<11}{'1D相':<6}{'5D相':<6}{'2W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
     table_str += "-" * 79 + "\n"
 
@@ -362,7 +365,7 @@ def send_to_discord(df, prev_history, market_regime):
         ),
         "color": 3447003,
         "footer": {
-            "text": "GitHub Actions 自動發送 • 1D/5D/2W/1M 多週期動能模型"
+            "text": "GitHub Actions 自動發送 • 短線加權動能模型 (1D:10%, 5D:30%, 2W:30%, 1M:30% )"
         }
     }
 
@@ -370,7 +373,7 @@ def send_to_discord(df, prev_history, market_regime):
     response = requests.post(webhook_url, json=payload)
     
     if response.status_code == 204:
-        print("成功發送多週期 (1D/5D/2W/1M) 監控報告到 Discord！")
+        print("成功發送短線加權多週期監控報告到 Discord！")
     else:
         print(f"發送失敗，狀態碼：{response.status_code}, 回應：{response.text}")
 
