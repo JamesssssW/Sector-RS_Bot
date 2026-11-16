@@ -73,7 +73,7 @@ def load_previous_history():
     return {}
 
 def save_current_history(df_result):
-    """將今日最新排名與象限追加寫入 history.json (最多保留最近 20 日)"""
+    """將今日最新排名與象限追加寫入 history.json (最多保留最近 30 日)"""
     prev_data = load_previous_history()
     history_data = {}
     
@@ -89,8 +89,9 @@ def save_current_history(df_result):
         ranks.append(curr_rank)
         quadrants.append(curr_quad)
         
-        ranks = ranks[-20:]
-        quadrants = quadrants[-20:]
+        # 🔄 改為保留最近 30 日數據
+        ranks = ranks[-30:]
+        quadrants = quadrants[-30:]
         
         history_data[ticker] = {
             "ranks": ranks,
@@ -106,15 +107,14 @@ def calculate_rrg_and_rs():
     print(f"正在下載 {len(SECTORS)} 個板塊 1 年數據並計算大市環境與多週期動能...")
     
     session = requests.Session()
-    # 偽裝成真實瀏覽器，減少被 Yahoo Finance 429 封鎖的機率
     session.headers.update({
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     })
     
     retries = Retry(
-        total=5,                # 增加重試次數到 5 次
-        backoff_factor=5,       # 每次重試間隔拉長 (5s, 10s, 20s...)
-        status_forcelist=[429, 500, 502, 503, 504], # 納入 429 狀態碼自動重試
+        total=5,
+        backoff_factor=5,
+        status_forcelist=[429, 500, 502, 503, 504],
         raise_on_status=False
     )
     adapter = HTTPAdapter(max_retries=retries)
@@ -128,16 +128,13 @@ def calculate_rrg_and_rs():
     session.request = request_with_timeout
 
     try:
-        # 使用下載並覆蓋 session
         data = yf.download(tickers, period='1y', session=session, progress=False)['Close']
     except Exception as e:
         raise RuntimeError(f"Yahoo Finance 數據下載失敗或連線逾時: {e}")
     
-    # 🛡️ 防呆檢查：如果下載回來的是空的，或者 Series 格式異常，直接拋出明確錯誤
     if data is None or isinstance(data, pd.Series) or data.empty:
         raise ValueError("❌ 錯誤：Yahoo Finance 下載返回的數據為空，可能被 Rate Limit (429) 封鎖，請稍後再試。")
 
-    # 檢查是否有足夠的歷史數據來計算 200 日均線
     if BENCHMARK not in data.columns or len(data) < 200:
         raise ValueError(f"❌ 錯誤：下載的 {BENCHMARK} 數據不足 200 筆（目前只有 {len(data)} 筆），無法計算 SMA200。")
 
@@ -173,20 +170,24 @@ def calculate_rrg_and_rs():
     latest_ratio = rs_ratio.iloc[-1]
     latest_mom = rs_momentum.iloc[-1]
 
+    # 計算多週期相對回報率：1D (1), 5D (5), 2W (10), 1M (21)
     ret_1d = data.pct_change(1).iloc[-1]
     ret_5d = data.pct_change(5).iloc[-1]
-    ret_21d = data.pct_change(21).iloc[-1]
+    ret_2w = data.pct_change(10).iloc[-1]
+    ret_1m = data.pct_change(21).iloc[-1]
 
     spy_1d = ret_1d[BENCHMARK]
     spy_5d = ret_5d[BENCHMARK]
-    spy_21d = ret_21d[BENCHMARK]
+    spy_2w = ret_2w[BENCHMARK]
+    spy_1m = ret_1m[BENCHMARK]
 
     results = []
     for t, name in SECTORS.items():
         if t in data.columns:
             e1d = (ret_1d[t] - spy_1d) * 100
             e5d = (ret_5d[t] - spy_5d) * 100
-            e21d = (ret_21d[t] - spy_21d) * 100
+            e2w = (ret_2w[t] - spy_2w) * 100
+            e1m = (ret_1m[t] - spy_1m) * 100
             
             r_ratio = float(latest_ratio.get(t, 100.0))
             r_mom = float(latest_mom.get(t, 100.0))
@@ -210,7 +211,8 @@ def calculate_rrg_and_rs():
                 'group': 'core' if t in CORE_SECTORS else 'thematic',
                 'rel_1d': e1d,
                 'rel_5d': e5d,
-                'rel_21d': e21d,
+                'rel_2w': e2w,
+                'rel_1m': e1m,
                 'r_ratio': r_ratio,
                 'r_mom': r_mom,
                 'quadrant': quadrant,
@@ -218,7 +220,8 @@ def calculate_rrg_and_rs():
             })
 
     df_rs = pd.DataFrame(results)
-    df_rs = df_rs.sort_values(by='rel_21d', ascending=False).reset_index(drop=True)
+    # 預設以 1M（21日）相對表現排序
+    df_rs = df_rs.sort_values(by='rel_1m', ascending=False).reset_index(drop=True)
     return df_rs, market_regime
 
 def format_rank_change(current_rank, prev_rank):
@@ -242,8 +245,9 @@ def get_quadrant_emoji(quad):
     return mapping.get(quad, "⚪")
 
 def generate_table_string(sub_df, prev_history):
-    table_str = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<8}{'象限':<11}{'1D相':<6}{'1W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
-    table_str += "-" * 73 + "\n"
+    # 更新表頭：1D相 | 5D相 | 2W相 | 1M相
+    table_str = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<8}{'象限':<11}{'1D相':<6}{'5D相':<6}{'2W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
+    table_str += "-" * 79 + "\n"
 
     rotations = []
 
@@ -299,7 +303,8 @@ def generate_table_string(sub_df, prev_history):
 
         r1d = f"{row['rel_1d']:+.1f}%"
         r5d = f"{row['rel_5d']:+.1f}%"
-        r21d = f"{row['rel_21d']:+.1f}%"
+        r2w = f"{row['rel_2w']:+.1f}%"
+        r1m = f"{row['rel_1m']:+.1f}%"
         avg_5d_str = f"{avg_rank_5d:.1f}"
 
         if has_rotated:
@@ -307,7 +312,7 @@ def generate_table_string(sub_df, prev_history):
         else:
             quad_display = f"{emoji}{quad:<9}"
 
-        table_str += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<8}{quad_display:<11}{r1d:<6}{r5d:<6}{r21d:<6}{avg_5d_str:<5}{quality_str:<9}\n"
+        table_str += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<8}{quad_display:<11}{r1d:<6}{r5d:<6}{r2w:<6}{r1m:<6}{avg_5d_str:<5}{quality_str:<9}\n"
 
     return table_str, rotations
 
@@ -339,7 +344,6 @@ def send_to_discord(df, prev_history, market_regime):
         f"🟡 Weakening: `{quad_counts.get('Weakening', 0)}` | 🔴 Lagging: `{quad_counts.get('Lagging', 0)}`"
     )
 
-    # Embed 1: 傳統板塊與核心行業 (置頂顯示大市環境)
     embed_core = {
         "title": "📊 美股傳統板塊與核心行業監控 (20 檔)",
         "description": (
@@ -350,7 +354,6 @@ def send_to_discord(df, prev_history, market_regime):
         "color": 3066993
     }
 
-    # Embed 2: 前沿主題與高增長賽道
     embed_thematic = {
         "title": "🚀 美股前沿主題與高增長賽道監控 (15 檔)",
         "description": (
@@ -359,7 +362,7 @@ def send_to_discord(df, prev_history, market_regime):
         ),
         "color": 3447003,
         "footer": {
-            "text": "GitHub Actions 自動發送 • 大市環境過濾與排名品質模型"
+            "text": "GitHub Actions 自動發送 • 1D/5D/2W/1M 多週期動能模型"
         }
     }
 
@@ -367,7 +370,7 @@ def send_to_discord(df, prev_history, market_regime):
     response = requests.post(webhook_url, json=payload)
     
     if response.status_code == 204:
-        print("成功發送帶有大市環境過濾的雙 Embed 報告到 Discord！")
+        print("成功發送多週期 (1D/5D/2W/1M) 監控報告到 Discord！")
     else:
         print(f"發送失敗，狀態碼：{response.status_code}, 回應：{response.text}")
 
