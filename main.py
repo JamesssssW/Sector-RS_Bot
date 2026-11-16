@@ -7,9 +7,8 @@ import numpy as np
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-# 定義 35 個美股板塊及重點主題 ETF
-SECTORS = {
-    # 11 大傳統 GICS 板塊
+# 1. 傳統板塊與核心行業 (共 20 個)
+CORE_SECTORS = {
     'XLK': '科技',
     'XLF': '金融',
     'XLV': '醫療保健',
@@ -21,7 +20,6 @@ SECTORS = {
     'XLB': '原材料',
     'XLRE': '房地產',
     'XLC': '通訊服務',
-    # 9 大熱門重點行業 / 次板塊
     'SMH': '半導體',
     'XBI': '生物科技',
     'IGV': '軟體應用',
@@ -30,14 +28,16 @@ SECTORS = {
     'XRT': '零售',
     'IYT': '運輸',
     'ITA': '國防航天',
-    'XME': '金屬礦業',
-    # 前沿主題 / 賽道 (原 5 個)
+    'XME': '金屬礦業'
+}
+
+# 2. 前沿主題與高增長賽道 (共 15 個)
+THEMATIC_SECTORS = {
     'CIBR': '網絡安全',
     'DRAM': '記憶體',
     'UFO': '太空探索',
     'LYTE': '光通信',
     'WGMI': '加密挖礦',
-    # 🆕 新增 10 個熱門行業與主題 ETF
     'ICLN': '清潔能源',
     'TAN': '太陽能',
     'BOTZ': '機械人AI',
@@ -49,6 +49,8 @@ SECTORS = {
     'PAVE': '基礎設施',
     'JETS': '航空旅遊'
 }
+
+SECTORS = {**CORE_SECTORS, **THEMATIC_SECTORS}
 
 BENCHMARK = 'SPY'
 HISTORY_FILE = 'history.json'
@@ -87,7 +89,6 @@ def save_current_history(df_result):
         ranks.append(curr_rank)
         quadrants.append(curr_quad)
         
-        # 只保留最近 20 日數據
         ranks = ranks[-20:]
         quadrants = quadrants[-20:]
         
@@ -102,21 +103,19 @@ def save_current_history(df_result):
         json.dump(history_data, f, ensure_ascii=False, indent=2)
 
 def calculate_rrg_and_rs():
-    print(f"正在下載 {len(SECTORS)} 個板塊數據並計算多週期動能與排名品質（具備自動重試機制）...")
+    print(f"正在下載 {len(SECTORS)} 個板塊 1 年數據並計算大市環境與多週期動能...")
     
-    # 建立具有 Retry 與 Timeout機制的 requests.Session
     session = requests.Session()
     retries = Retry(
-        total=3,                # 最多重試 3 次
-        backoff_factor=2,       # 每次重試間隔時間 (2s, 4s, 8s...)
-        status_forcelist=[500, 502, 503, 504], # 遇到伺服器錯誤時自動重試
+        total=3,
+        backoff_factor=2,
+        status_forcelist=[500, 502, 503, 504],
         raise_on_status=False
     )
     adapter = HTTPAdapter(max_retries=retries)
     session.mount('https://', adapter)
     session.mount('http://', adapter)
     
-    # 強制為所有請求加入 30 秒 timeout，避免 GitHub Actions 無限卡死
     original_request = session.request
     def request_with_timeout(*args, **kwargs):
         kwargs.setdefault('timeout', 30)
@@ -124,13 +123,23 @@ def calculate_rrg_and_rs():
     session.request = request_with_timeout
 
     try:
-        # 將客製化 session 傳入 yfinance
-        data = yf.download(tickers, period='6mo', session=session, progress=False)['Close']
+        # ⚠️ 必須改為 1y 才能確保有足夠數據計算 200 日均線
+        data = yf.download(tickers, period='1y', session=session, progress=False)['Close']
     except Exception as e:
         raise RuntimeError(f"Yahoo Finance 數據下載失敗或連線逾時: {e}")
     
     if isinstance(data, pd.Series):
         raise ValueError("下載數據出錯，返回的格式異常，請檢查 Ticker")
+
+    # 🌐 計算 SPY 大市環境 (SMA200)
+    spy_series = data[BENCHMARK]
+    spy_sma200 = spy_series.rolling(window=200).mean().iloc[-1]
+    spy_latest = spy_series.iloc[-1]
+    
+    if spy_latest >= spy_sma200:
+        market_regime = "🟢 大市環境：多頭牛市 (SPY 企穩 SMA200)"
+    else:
+        market_regime = "🔴 大市環境：空頭警戒 (SPY 跌破 SMA200)"
 
     ratios = pd.DataFrame()
     for t in SECTORS.keys():
@@ -154,7 +163,6 @@ def calculate_rrg_and_rs():
     latest_ratio = rs_ratio.iloc[-1]
     latest_mom = rs_momentum.iloc[-1]
 
-    # 計算多週期回報率 (1D, 5D, 21D)
     ret_1d = data.pct_change(1).iloc[-1]
     ret_5d = data.pct_change(5).iloc[-1]
     ret_21d = data.pct_change(21).iloc[-1]
@@ -189,6 +197,7 @@ def calculate_rrg_and_rs():
             results.append({
                 'ticker': t,
                 'name': name,
+                'group': 'core' if t in CORE_SECTORS else 'thematic',
                 'rel_1d': e1d,
                 'rel_5d': e5d,
                 'rel_21d': e21d,
@@ -200,7 +209,7 @@ def calculate_rrg_and_rs():
 
     df_rs = pd.DataFrame(results)
     df_rs = df_rs.sort_values(by='rel_21d', ascending=False).reset_index(drop=True)
-    return df_rs
+    return df_rs, market_regime
 
 def format_rank_change(current_rank, prev_rank):
     if prev_rank is None:
@@ -222,29 +231,14 @@ def get_quadrant_emoji(quad):
     }
     return mapping.get(quad, "⚪")
 
-def send_to_discord(df, prev_history):
-    webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
-    if not webhook_url:
-        print("錯誤：未設定 DISCORD_WEBHOOK_URL 環境變數")
-        return
-
-    top_quadrant = df.iloc[0]['quadrant'] if not df.empty else "Leading"
-    color_map = {
-        "Leading": 3066993,     # 🟢 綠色
-        "Improving": 3447003,   # 🔵 藍色
-        "Weakening": 15844367,  # 🟡 黃色
-        "Lagging": 15158332     # 🔴 紅色
-    }
-    embed_color = color_map.get(top_quadrant, 3447003)
+def generate_table_string(sub_df, prev_history):
+    table_str = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<8}{'象限':<11}{'1D相':<6}{'1W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
+    table_str += "-" * 73 + "\n"
 
     rotations = []
 
-    # 整合表格（名稱欄位闊度為 8）
-    unified_table = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<8}{'象限':<11}{'1D相':<6}{'1W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
-    unified_table += "-" * 73 + "\n"
-
-    for idx, row in df.iterrows():
-        rank = idx + 1
+    for idx, row in sub_df.iterrows():
+        rank = row['global_rank']
         ticker = row['ticker']
         
         item_hist = prev_history.get(ticker, {})
@@ -264,7 +258,6 @@ def send_to_discord(df, prev_history):
         
         ranks_5d = full_ranks[-5:]
         avg_rank_5d = sum(ranks_5d) / len(ranks_5d) if ranks_5d else rank
-        
         rank_std = np.std(ranks_5d) if len(ranks_5d) > 1 else 0.0
         
         leading_days = 0
@@ -304,49 +297,72 @@ def send_to_discord(df, prev_history):
         else:
             quad_display = f"{emoji}{quad:<9}"
 
-        unified_table += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<8}{quad_display:<11}{r1d:<6}{r5d:<6}{r21d:<6}{avg_5d_str:<5}{quality_str:<9}\n"
+        table_str += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<8}{quad_display:<11}{r1d:<6}{r5d:<6}{r21d:<6}{avg_5d_str:<5}{quality_str:<9}\n"
 
-    quad_counts = df['quadrant'].value_counts()
-    count_leading = quad_counts.get("Leading", 0)
-    count_improving = quad_counts.get("Improving", 0)
-    count_weakening = quad_counts.get("Weakening", 0)
-    count_lagging = quad_counts.get("Lagging", 0)
+    return table_str, rotations
 
-    market_breadth_summary = (
-        f"**📈 市場板塊象限分佈統計 (共 {len(df)} 個標的)**\n"
-        f"🟢 Leading: `{count_leading}` | 🔵 Improving: `{count_improving}` | "
-        f"🟡 Weakening: `{count_weakening}` | 🔴 Lagging: `{count_lagging}`"
-    )
+def send_to_discord(df, prev_history, market_regime):
+    webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
+    if not webhook_url:
+        print("錯誤：未設定 DISCORD_WEBHOOK_URL 環境變數")
+        return
+
+    df['global_rank'] = df.reset_index().index + 1
+
+    df_core = df[df['group'] == 'core'].copy()
+    df_thematic = df[df['group'] == 'thematic'].copy()
+
+    table_core, rotations_core = generate_table_string(df_core, prev_history)
+    table_thematic, rotations_thematic = generate_table_string(df_thematic, prev_history)
+    all_rotations = rotations_core + rotations_thematic
 
     rotation_section = ""
-    if rotations:
-        rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n" + "\n".join(rotations) + "\n\n"
+    if all_rotations:
+        rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n" + "\n".join(all_rotations) + "\n\n"
     else:
         rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n*今日暫無板塊發生跨象限轉倉.*\n\n"
 
-    embed = {
-        "title": f"📊 美股 {len(df)} 大板塊與主題品質監控系統",
+    quad_counts = df['quadrant'].value_counts()
+    market_breadth_summary = (
+        f"**📈 市場板塊象限分佈統計 (共 {len(df)} 個標的)**\n"
+        f"🟢 Leading: `{quad_counts.get('Leading', 0)}` | 🔵 Improving: `{quad_counts.get('Improving', 0)}` | "
+        f"🟡 Weakening: `{quad_counts.get('Weakening', 0)}` | 🔴 Lagging: `{quad_counts.get('Lagging', 0)}`"
+    )
+
+    # Embed 1: 傳統板塊與核心行業 (置頂顯示大市環境)
+    embed_core = {
+        "title": "📊 美股傳統板塊與核心行業監控 (20 檔)",
         "description": (
-            f"**🏆 當前領頭羊象限：** `{top_quadrant}`\n\n"
+            f"**{market_regime}**\n\n"
             f"{rotation_section}"
-            f"**【板塊總覽與排名品質清單 (⭐ 代表轉倉/剛轉強)】**\n```text\n{unified_table}\n```\n"
+            f"**【核心資產總覽與排名品質】**\n```text\n{table_core}\n```"
+        ),
+        "color": 3066993
+    }
+
+    # Embed 2: 前沿主題與高增長賽道
+    embed_thematic = {
+        "title": "🚀 美股前沿主題與高增長賽道監控 (15 檔)",
+        "description": (
+            f"**【前沿主題總覽與排名品質】**\n```text\n{table_thematic}\n```\n"
             f"{market_breadth_summary}"
         ),
-        "color": embed_color,
+        "color": 3447003,
         "footer": {
-            "text": "GitHub Actions 自動發送 • 多週期動能與排名品質模型"
+            "text": "GitHub Actions 自動發送 • 大市環境過濾與排名品質模型"
         }
     }
 
-    payload = {"embeds": [embed]}
+    payload = {"embeds": [embed_core, embed_thematic]}
     response = requests.post(webhook_url, json=payload)
+    
     if response.status_code == 204:
-        print("成功發送品質監控報告到 Discord！")
+        print("成功發送帶有大市環境過濾的雙 Embed 報告到 Discord！")
     else:
         print(f"發送失敗，狀態碼：{response.status_code}, 回應：{response.text}")
 
 if __name__ == "__main__":
     prev_history = load_previous_history()
-    df_result = calculate_rrg_and_rs()
-    send_to_discord(df_result, prev_history)
+    df_result, market_regime = calculate_rrg_and_rs()
+    send_to_discord(df_result, prev_history, market_regime)
     save_current_history(df_result)
