@@ -1,5 +1,6 @@
 import os
 import json
+from datetime import datetime
 import requests
 import yfinance as yf
 import pandas as pd
@@ -7,7 +8,9 @@ import numpy as np
 from requests.adapters import HTTPAdapter
 from urllib3.util import Retry
 
-# 1. 傳統板塊與核心行業 (共 20 個)
+# ==========================================
+# 1. 監控標的設定 (共 35 檔 ETF)
+# ==========================================
 CORE_SECTORS = {
     'XLK': '科技',
     'XLF': '金融',
@@ -31,7 +34,6 @@ CORE_SECTORS = {
     'XME': '金屬礦業'
 }
 
-# 2. 前沿主題與高增長賽道 (共 15 個)
 THEMATIC_SECTORS = {
     'CIBR': '網絡安全',
     'DRAM': '記憶體',
@@ -51,13 +53,15 @@ THEMATIC_SECTORS = {
 }
 
 SECTORS = {**CORE_SECTORS, **THEMATIC_SECTORS}
-
 BENCHMARK = 'SPY'
 HISTORY_FILE = 'history.json'
 tickers = list(SECTORS.keys()) + [BENCHMARK]
 
+
+# ==========================================
+# 2. 歷史紀錄處理 (保留最近 30 日)
+# ==========================================
 def load_previous_history():
-    """讀取歷史紀錄（包含過去的排名與象限序列）"""
     if os.path.exists(HISTORY_FILE):
         try:
             with open(HISTORY_FILE, 'r', encoding='utf-8') as f:
@@ -73,7 +77,6 @@ def load_previous_history():
     return {}
 
 def save_current_history(df_result):
-    """將今日最新排名與象限追加寫入 history.json (最多保留最近 30 日)"""
     prev_data = load_previous_history()
     history_data = {}
     
@@ -89,7 +92,6 @@ def save_current_history(df_result):
         ranks.append(curr_rank)
         quadrants.append(curr_quad)
         
-        # 保留最近 30 日數據
         ranks = ranks[-30:]
         quadrants = quadrants[-30:]
         
@@ -103,8 +105,12 @@ def save_current_history(df_result):
     with open(HISTORY_FILE, 'w', encoding='utf-8') as f:
         json.dump(history_data, f, ensure_ascii=False, indent=2)
 
+
+# ==========================================
+# 3. 數據下載、大市環境與多週期加權計算
+# ==========================================
 def calculate_rrg_and_rs():
-    print(f"正在下載 {len(SECTORS)} 個板塊 1 年數據並計算大市環境與多週期動能（短線高權重模式）...")
+    print(f"正在下載 {len(SECTORS)} 個板塊 1 年數據並計算大市環境與加權動能...")
     
     session = requests.Session()
     session.headers.update({
@@ -138,7 +144,7 @@ def calculate_rrg_and_rs():
     if BENCHMARK not in data.columns or len(data) < 200:
         raise ValueError(f"❌ 錯誤：下載的 {BENCHMARK} 數據不足 200 筆（目前只有 {len(data)} 筆），無法計算 SMA200。")
 
-    # 🌐 計算 SPY 大市環境 (SMA200)
+    # 🌐 1. 計算 SPY 大市環境 (SMA200)
     spy_series = data[BENCHMARK].dropna()
     spy_sma200 = spy_series.rolling(window=200).mean().iloc[-1]
     spy_latest = spy_series.iloc[-1]
@@ -148,6 +154,7 @@ def calculate_rrg_and_rs():
     else:
         market_regime = "🔴 大市環境：空頭警戒 (SPY 跌破 SMA200)"
 
+    # 🌐 2. 計算 RRG
     ratios = pd.DataFrame()
     for t in SECTORS.keys():
         if t in data.columns:
@@ -170,7 +177,7 @@ def calculate_rrg_and_rs():
     latest_ratio = rs_ratio.iloc[-1]
     latest_mom = rs_momentum.iloc[-1]
 
-    # 計算多週期相對回報率：1D (1), 5D (5), 2W (10), 1M (21)
+    # 🌐 3. 計算多週期相對回報率：1D (1), 5D (5), 2W (10), 1M (21)
     ret_1d = data.pct_change(1).iloc[-1]
     ret_5d = data.pct_change(5).iloc[-1]
     ret_2w = data.pct_change(10).iloc[-1]
@@ -189,7 +196,7 @@ def calculate_rrg_and_rs():
             e2w = (ret_2w[t] - spy_2w) * 100
             e1m = (ret_1m[t] - spy_1m) * 100
             
-            # ⚖️ 短線高爆發力加權綜合得分 (1D:10%, 5D:30%, 2W:30%, 1M:30%)
+            # 短線加權綜合得分 (1D:10%, 5D:30%, 2W:30%, 1M:30%)
             weighted_score = (e1d * 0.10) + (e5d * 0.30) + (e2w * 0.30) + (e1m * 0.30)
             
             r_ratio = float(latest_ratio.get(t, 100.0))
@@ -224,10 +231,13 @@ def calculate_rrg_and_rs():
             })
 
     df_rs = pd.DataFrame(results)
-    # 🔄 依據新的加權綜合得分進行全局排序
     df_rs = df_rs.sort_values(by='weighted_score', ascending=False).reset_index(drop=True)
     return df_rs, market_regime
 
+
+# ==========================================
+# 4. 表格格式化與 Discord 雙 Embed 發送
+# ==========================================
 def format_rank_change(current_rank, prev_rank):
     if prev_rank is None:
         return "NEW"
@@ -247,138 +257,3 @@ def get_quadrant_emoji(quad):
         "Lagging": "🔴"
     }
     return mapping.get(quad, "⚪")
-
-def generate_table_string(sub_df, prev_history):
-    table_str = f"{'名':<3}{'變':<4}{'ETF':<6}{'名稱':<8}{'象限':<11}{'1D相':<6}{'5D相':<6}{'2W相':<6}{'1M相':<6}{'5D均':<5}{'品質/狀態':<9}\n"
-    table_str += "-" * 79 + "\n"
-
-    rotations = []
-
-    for idx, row in sub_df.iterrows():
-        rank = row['global_rank']
-        ticker = row['ticker']
-        
-        item_hist = prev_history.get(ticker, {})
-        past_ranks = item_hist.get('ranks', [])
-        past_quads = item_hist.get('quadrants', [])
-        prev_rank = past_ranks[-1] if past_ranks else None
-        prev_quad = past_quads[-1] if past_quads else None
-        
-        change_str = format_rank_change(rank, prev_rank)
-        
-        name = row['name']
-        emoji = row['quad_emoji']
-        quad = row['quadrant']
-
-        full_ranks = past_ranks + [rank]
-        full_quads = past_quads + [quad]
-        
-        ranks_5d = full_ranks[-5:]
-        avg_rank_5d = sum(ranks_5d) / len(ranks_5d) if ranks_5d else rank
-        rank_std = np.std(ranks_5d) if len(ranks_5d) > 1 else 0.0
-        
-        leading_days = 0
-        for q in reversed(full_quads):
-            if q == "Leading":
-                leading_days += 1
-            else:
-                break
-
-        if quad == "Leading":
-            if leading_days <= 2:
-                quality_str = "剛轉強⭐"
-            else:
-                quality_str = f"長期強({leading_days}天)"
-        elif rank_std > 3.5:
-            quality_str = "忽上忽下⚠️"
-        elif avg_rank_5d < rank - 1:
-            quality_str = "穩步上升📈"
-        elif avg_rank_5d > rank + 1:
-            quality_str = "回落中📉"
-        else:
-            quality_str = "橫盤穩定"
-
-        has_rotated = False
-        if prev_quad and prev_quad != quad:
-            has_rotated = True
-            prev_emoji = get_quadrant_emoji(prev_quad)
-            rotations.append(f"• **{ticker} ({name})**: {prev_emoji} `{prev_quad}` ➔ {emoji} `{quad}`")
-
-        r1d = f"{row['rel_1d']:+.1f}%"
-        r5d = f"{row['rel_5d']:+.1f}%"
-        r2w = f"{row['rel_2w']:+.1f}%"
-        r1m = f"{row['rel_1m']:+.1f}%"
-        avg_5d_str = f"{avg_rank_5d:.1f}"
-
-        if has_rotated:
-            quad_display = f"{emoji}{quad[:6]}⭐"
-        else:
-            quad_display = f"{emoji}{quad:<9}"
-
-        table_str += f"{rank:<3}{change_str:<4}{ticker:<6}{name:<8}{quad_display:<11}{r1d:<6}{r5d:<6}{r2w:<6}{r1m:<6}{avg_5d_str:<5}{quality_str:<9}\n"
-
-    return table_str, rotations
-
-def send_to_discord(df, prev_history, market_regime):
-    webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
-    if not webhook_url:
-        print("錯誤：未設定 DISCORD_WEBHOOK_URL 環境變數")
-        return
-
-    df['global_rank'] = df.reset_index().index + 1
-
-    df_core = df[df['group'] == 'core'].copy()
-    df_thematic = df[df['group'] == 'thematic'].copy()
-
-    table_core, rotations_core = generate_table_string(df_core, prev_history)
-    table_thematic, rotations_thematic = generate_table_string(df_thematic, prev_history)
-    all_rotations = rotations_core + rotations_thematic
-
-    rotation_section = ""
-    if all_rotations:
-        rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n" + "\n".join(all_rotations) + "\n\n"
-    else:
-        rotation_section = "**🔄 RRG 跨象限轉倉快訊**\n*今日暫無板塊發生跨象限轉倉.*\n\n"
-
-    quad_counts = df['quadrant'].value_counts()
-    market_breadth_summary = (
-        f"**📈 市場板塊象限分佈統計 (共 {len(df)} 個標的)**\n"
-        f"🟢 Leading: `{quad_counts.get('Leading', 0)}` | 🔵 Improving: `{quad_counts.get('Improving', 0)}` | "
-        f"🟡 Weakening: `{quad_counts.get('Weakening', 0)}` | 🔴 Lagging: `{quad_counts.get('Lagging', 0)}`"
-    )
-
-    embed_core = {
-        "title": "📊 美股傳統板塊與核心行業監控 (20 檔)",
-        "description": (
-            f"**{market_regime}**\n\n"
-            f"{rotation_section}"
-            f"**【核心資產總覽與排名品質】**\n```text\n{table_core}\n```"
-        ),
-        "color": 3066993
-    }
-
-    embed_thematic = {
-        "title": "🚀 美股前沿主題與高增長賽道監控 (15 檔)",
-        "description": (
-            f"**【前沿主題總覽與排名品質】**\n```text\n{table_thematic}\n```\n"
-            f"{market_breadth_summary}"
-        ),
-        "color": 3447003,
-        "footer": {
-            "text": "GitHub Actions 自動發送 • 短線加權動能模型 (1D:10%, 5D:30%, 2W:30%, 1M:30% )"
-        }
-    }
-
-    payload = {"embeds": [embed_core, embed_thematic]}
-    response = requests.post(webhook_url, json=payload)
-    
-    if response.status_code == 204:
-        print("成功發送短線加權多週期監控報告到 Discord！")
-    else:
-        print(f"發送失敗，狀態碼：{response.status_code}, 回應：{response.text}")
-
-if __name__ == "__main__":
-    prev_history = load_previous_history()
-    df_result, market_regime = calculate_rrg_and_rs()
-    send_to_discord(df_result, prev_history, market_regime)
-    save_current_history(df_result)
