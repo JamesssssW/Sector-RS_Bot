@@ -1,5 +1,4 @@
-yfinance
+yfinance>=0.2.50
 pandas
 numpy
 requests
-urllib3
