@@ -10,6 +10,11 @@
         "date": "2026-11-25",
         "rank": 1,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 1,
+        "quadrant": "Leading"
       }
     ],
     "rank": 1,
@@ -24,6 +29,11 @@
       },
       {
         "date": "2026-11-25",
+        "rank": 2,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 2,
         "quadrant": "Leading"
       }
@@ -42,6 +52,11 @@
         "date": "2026-11-25",
         "rank": 3,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 3,
+        "quadrant": "Leading"
       }
     ],
     "rank": 3,
@@ -56,6 +71,11 @@
       },
       {
         "date": "2026-11-25",
+        "rank": 4,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 4,
         "quadrant": "Leading"
       }
@@ -74,6 +94,11 @@
         "date": "2026-11-25",
         "rank": 5,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 5,
+        "quadrant": "Leading"
       }
     ],
     "rank": 5,
@@ -88,6 +113,11 @@
       },
       {
         "date": "2026-11-25",
+        "rank": 6,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 6,
         "quadrant": "Leading"
       }
@@ -106,25 +136,14 @@
         "date": "2026-11-25",
         "rank": 7,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 7,
+        "quadrant": "Leading"
       }
     ],
     "rank": 7,
-    "quadrant": "Leading"
-  },
-  "PPH": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 8,
-        "quadrant": "Leading"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 8,
-        "quadrant": "Leading"
-      }
-    ],
-    "rank": 8,
     "quadrant": "Leading"
   },
   "ESPO": {
@@ -138,89 +157,35 @@
         "date": "2026-11-25",
         "rank": 9,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 8,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 8,
+    "quadrant": "Leading"
+  },
+  "PPH": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 8,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 8,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 9,
+        "quadrant": "Leading"
       }
     ],
     "rank": 9,
-    "quadrant": "Leading"
-  },
-  "IHI": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 12,
-        "quadrant": "Leading"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 10,
-        "quadrant": "Leading"
-      }
-    ],
-    "rank": 10,
-    "quadrant": "Leading"
-  },
-  "XLV": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 10,
-        "quadrant": "Leading"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 11,
-        "quadrant": "Leading"
-      }
-    ],
-    "rank": 11,
-    "quadrant": "Leading"
-  },
-  "XHB": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 11,
-        "quadrant": "Leading"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 12,
-        "quadrant": "Leading"
-      }
-    ],
-    "rank": 12,
-    "quadrant": "Leading"
-  },
-  "XLF": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 15,
-        "quadrant": "Leading"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 13,
-        "quadrant": "Leading"
-      }
-    ],
-    "rank": 13,
-    "quadrant": "Leading"
-  },
-  "XBI": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 14,
-        "quadrant": "Leading"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 14,
-        "quadrant": "Leading"
-      }
-    ],
-    "rank": 14,
     "quadrant": "Leading"
   },
   "XLC": {
@@ -234,9 +199,77 @@
         "date": "2026-11-25",
         "rank": 15,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 10,
+        "quadrant": "Leading"
       }
     ],
-    "rank": 15,
+    "rank": 10,
+    "quadrant": "Leading"
+  },
+  "XHB": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 11,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 12,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 11,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 11,
+    "quadrant": "Leading"
+  },
+  "IHI": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 12,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 10,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 12,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 12,
+    "quadrant": "Leading"
+  },
+  "XLV": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 10,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 11,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 13,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 13,
     "quadrant": "Leading"
   },
   "XLB": {
@@ -250,10 +283,36 @@
         "date": "2026-11-25",
         "rank": 16,
         "quadrant": "Weakening"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 14,
+        "quadrant": "Weakening"
       }
     ],
-    "rank": 16,
+    "rank": 14,
     "quadrant": "Weakening"
+  },
+  "XLF": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 15,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 13,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 15,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 15,
+    "quadrant": "Leading"
   },
   "XRT": {
     "records": [
@@ -266,9 +325,14 @@
         "date": "2026-11-25",
         "rank": 17,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 16,
+        "quadrant": "Leading"
       }
     ],
-    "rank": 17,
+    "rank": 16,
     "quadrant": "Leading"
   },
   "MOO": {
@@ -280,6 +344,32 @@
       },
       {
         "date": "2026-11-25",
+        "rank": 18,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 17,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 17,
+    "quadrant": "Leading"
+  },
+  "XBI": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 14,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 14,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 18,
         "quadrant": "Leading"
       }
@@ -298,6 +388,11 @@
         "date": "2026-11-25",
         "rank": 19,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 19,
+        "quadrant": "Leading"
       }
     ],
     "rank": 19,
@@ -314,20 +409,30 @@
         "date": "2026-11-25",
         "rank": 20,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 20,
+        "quadrant": "Leading"
       }
     ],
     "rank": 20,
     "quadrant": "Leading"
   },
-  "KRE": {
+  "JETS": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 21,
+        "rank": 22,
         "quadrant": "Leading"
       },
       {
         "date": "2026-11-25",
+        "rank": 23,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 21,
         "quadrant": "Leading"
       }
@@ -346,25 +451,56 @@
         "date": "2026-11-25",
         "rank": 22,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 22,
+        "quadrant": "Leading"
       }
     ],
     "rank": 22,
     "quadrant": "Leading"
   },
-  "JETS": {
+  "KRE": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 22,
+        "rank": 21,
         "quadrant": "Leading"
       },
       {
         "date": "2026-11-25",
+        "rank": 21,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 23,
         "quadrant": "Leading"
       }
     ],
     "rank": 23,
+    "quadrant": "Leading"
+  },
+  "IWM": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 24,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 25,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 24,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 24,
     "quadrant": "Leading"
   },
   "XLI": {
@@ -378,20 +514,9 @@
         "date": "2026-11-25",
         "rank": 24,
         "quadrant": "Leading"
-      }
-    ],
-    "rank": 24,
-    "quadrant": "Leading"
-  },
-  "IWM": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 24,
-        "quadrant": "Leading"
       },
       {
-        "date": "2026-11-25",
+        "date": "2026-11-27",
         "rank": 25,
         "quadrant": "Leading"
       }
@@ -410,89 +535,35 @@
         "date": "2026-11-25",
         "rank": 26,
         "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 26,
+        "quadrant": "Leading"
       }
     ],
     "rank": 26,
     "quadrant": "Leading"
   },
-  "XLE": {
+  "SOCL": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 33,
-        "quadrant": "Weakening"
+        "rank": 30,
+        "quadrant": "Lagging"
       },
       {
         "date": "2026-11-25",
+        "rank": 34,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 27,
-        "quadrant": "Weakening"
+        "quadrant": "Lagging"
       }
     ],
     "rank": 27,
-    "quadrant": "Weakening"
-  },
-  "IAI": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 28,
-        "quadrant": "Leading"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 28,
-        "quadrant": "Leading"
-      }
-    ],
-    "rank": 28,
-    "quadrant": "Leading"
-  },
-  "IHF": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 27,
-        "quadrant": "Weakening"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 29,
-        "quadrant": "Weakening"
-      }
-    ],
-    "rank": 29,
-    "quadrant": "Weakening"
-  },
-  "CIBR": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 31,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 30,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 30,
-    "quadrant": "Lagging"
-  },
-  "FINX": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 29,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 31,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 31,
     "quadrant": "Lagging"
   },
   "GDX": {
@@ -506,41 +577,203 @@
         "date": "2026-11-25",
         "rank": 32,
         "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 28,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 28,
+    "quadrant": "Lagging"
+  },
+  "FINX": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 29,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 31,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 29,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 29,
+    "quadrant": "Lagging"
+  },
+  "IHF": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 27,
+        "quadrant": "Weakening"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 29,
+        "quadrant": "Weakening"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 30,
+        "quadrant": "Weakening"
+      }
+    ],
+    "rank": 30,
+    "quadrant": "Weakening"
+  },
+  "IAI": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 28,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 28,
+        "quadrant": "Leading"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 31,
+        "quadrant": "Leading"
+      }
+    ],
+    "rank": 31,
+    "quadrant": "Leading"
+  },
+  "SLX": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 40,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 40,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 32,
+        "quadrant": "Lagging"
       }
     ],
     "rank": 32,
     "quadrant": "Lagging"
   },
-  "GRID": {
+  "SIL": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 35,
-        "quadrant": "Improving"
+        "rank": 36,
+        "quadrant": "Lagging"
       },
       {
         "date": "2026-11-25",
+        "rank": 38,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 33,
-        "quadrant": "Improving"
+        "quadrant": "Lagging"
       }
     ],
     "rank": 33,
-    "quadrant": "Improving"
+    "quadrant": "Lagging"
   },
-  "SOCL": {
+  "CIBR": {
     "records": [
       {
         "date": "2026-11-26",
+        "rank": 31,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
         "rank": 30,
         "quadrant": "Lagging"
       },
       {
-        "date": "2026-11-25",
+        "date": "2026-11-27",
         "rank": 34,
-        "quadrant": "Lagging"
+        "quadrant": "Improving"
       }
     ],
     "rank": 34,
+    "quadrant": "Improving"
+  },
+  "XLE": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 33,
+        "quadrant": "Weakening"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 27,
+        "quadrant": "Weakening"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 35,
+        "quadrant": "Weakening"
+      }
+    ],
+    "rank": 35,
+    "quadrant": "Weakening"
+  },
+  "BOTZ": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 34,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 36,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 36,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 36,
+    "quadrant": "Lagging"
+  },
+  "ICLN": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 41,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 47,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 37,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 37,
     "quadrant": "Lagging"
   },
   "OIH": {
@@ -554,52 +787,9 @@
         "date": "2026-11-25",
         "rank": 35,
         "quadrant": "Lagging"
-      }
-    ],
-    "rank": 35,
-    "quadrant": "Lagging"
-  },
-  "BOTZ": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 34,
-        "quadrant": "Lagging"
       },
       {
-        "date": "2026-11-25",
-        "rank": 36,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 36,
-    "quadrant": "Lagging"
-  },
-  "FDN": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 38,
-        "quadrant": "Improving"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 37,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 37,
-    "quadrant": "Lagging"
-  },
-  "SIL": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 36,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
+        "date": "2026-11-27",
         "rank": 38,
         "quadrant": "Lagging"
       }
@@ -618,73 +808,56 @@
         "date": "2026-11-25",
         "rank": 39,
         "quadrant": "Improving"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 39,
+        "quadrant": "Improving"
       }
     ],
     "rank": 39,
     "quadrant": "Improving"
   },
-  "SLX": {
+  "GRID": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 40,
-        "quadrant": "Lagging"
+        "rank": 35,
+        "quadrant": "Improving"
       },
       {
         "date": "2026-11-25",
+        "rank": 33,
+        "quadrant": "Improving"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 40,
-        "quadrant": "Lagging"
+        "quadrant": "Improving"
       }
     ],
     "rank": 40,
-    "quadrant": "Lagging"
+    "quadrant": "Improving"
   },
-  "IGV": {
+  "FDN": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 42,
-        "quadrant": "Lagging"
+        "rank": 38,
+        "quadrant": "Improving"
       },
       {
         "date": "2026-11-25",
+        "rank": 37,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 41,
         "quadrant": "Lagging"
       }
     ],
     "rank": 41,
-    "quadrant": "Lagging"
-  },
-  "XOP": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 48,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 42,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 42,
-    "quadrant": "Lagging"
-  },
-  "SKYY": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 44,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 43,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 43,
     "quadrant": "Lagging"
   },
   "LYTE": {
@@ -693,25 +866,14 @@
         "date": "2026-11-25",
         "rank": 44,
         "quadrant": "Lagging"
-      }
-    ],
-    "rank": 44,
-    "quadrant": "Lagging"
-  },
-  "XLK": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 46,
-        "quadrant": "Lagging"
       },
       {
-        "date": "2026-11-25",
-        "rank": 45,
+        "date": "2026-11-27",
+        "rank": 42,
         "quadrant": "Lagging"
       }
     ],
-    "rank": 45,
+    "rank": 42,
     "quadrant": "Lagging"
   },
   "XME": {
@@ -725,25 +887,56 @@
         "date": "2026-11-25",
         "rank": 46,
         "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 43,
+        "quadrant": "Lagging"
       }
     ],
-    "rank": 46,
+    "rank": 43,
     "quadrant": "Lagging"
   },
-  "ICLN": {
+  "TAN": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 41,
+        "rank": 51,
         "quadrant": "Lagging"
       },
       {
         "date": "2026-11-25",
-        "rank": 47,
+        "rank": 55,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 44,
         "quadrant": "Lagging"
       }
     ],
-    "rank": 47,
+    "rank": 44,
+    "quadrant": "Lagging"
+  },
+  "LIT": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 55,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 57,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 45,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 45,
     "quadrant": "Lagging"
   },
   "GLD": {
@@ -757,73 +950,56 @@
         "date": "2026-11-25",
         "rank": 48,
         "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 46,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 46,
+    "quadrant": "Lagging"
+  },
+  "IGV": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 42,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 41,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 47,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 47,
+    "quadrant": "Lagging"
+  },
+  "SKYY": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 44,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 43,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 48,
+        "quadrant": "Lagging"
       }
     ],
     "rank": 48,
-    "quadrant": "Lagging"
-  },
-  "QTUM": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 47,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 49,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 49,
-    "quadrant": "Lagging"
-  },
-  "DTCR": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 50,
-        "quadrant": "Improving"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 50,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 50,
-    "quadrant": "Lagging"
-  },
-  "SMH": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 49,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 51,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 51,
-    "quadrant": "Lagging"
-  },
-  "DRAM": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 53,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 52,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 52,
     "quadrant": "Lagging"
   },
   "REMX": {
@@ -837,20 +1013,114 @@
         "date": "2026-11-25",
         "rank": 53,
         "quadrant": "Improving"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 49,
+        "quadrant": "Improving"
       }
     ],
-    "rank": 53,
+    "rank": 49,
     "quadrant": "Improving"
   },
-  "WGMI": {
+  "XOP": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 54,
+        "rank": 48,
         "quadrant": "Lagging"
       },
       {
         "date": "2026-11-25",
+        "rank": 42,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 50,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 50,
+    "quadrant": "Lagging"
+  },
+  "QTUM": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 47,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 49,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 51,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 51,
+    "quadrant": "Lagging"
+  },
+  "XLK": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 46,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 45,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 52,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 52,
+    "quadrant": "Lagging"
+  },
+  "DRAM": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 53,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 52,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 53,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 53,
+    "quadrant": "Lagging"
+  },
+  "URA": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 57,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 58,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 54,
         "quadrant": "Lagging"
       }
@@ -858,15 +1128,20 @@
     "rank": 54,
     "quadrant": "Lagging"
   },
-  "TAN": {
+  "SMH": {
     "records": [
       {
         "date": "2026-11-26",
-        "rank": 51,
+        "rank": 49,
         "quadrant": "Lagging"
       },
       {
         "date": "2026-11-25",
+        "rank": 51,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 55,
         "quadrant": "Lagging"
       }
@@ -885,41 +1160,14 @@
         "date": "2026-11-25",
         "rank": 56,
         "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 56,
+        "quadrant": "Lagging"
       }
     ],
     "rank": 56,
-    "quadrant": "Lagging"
-  },
-  "LIT": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 55,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 57,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 57,
-    "quadrant": "Lagging"
-  },
-  "URA": {
-    "records": [
-      {
-        "date": "2026-11-26",
-        "rank": 57,
-        "quadrant": "Lagging"
-      },
-      {
-        "date": "2026-11-25",
-        "rank": 58,
-        "quadrant": "Lagging"
-      }
-    ],
-    "rank": 58,
     "quadrant": "Lagging"
   },
   "SLV": {
@@ -931,6 +1179,53 @@
       },
       {
         "date": "2026-11-25",
+        "rank": 59,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 57,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 57,
+    "quadrant": "Lagging"
+  },
+  "DTCR": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 50,
+        "quadrant": "Improving"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 50,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
+        "rank": 58,
+        "quadrant": "Lagging"
+      }
+    ],
+    "rank": 58,
+    "quadrant": "Lagging"
+  },
+  "WGMI": {
+    "records": [
+      {
+        "date": "2026-11-26",
+        "rank": 54,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-25",
+        "rank": 54,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 59,
         "quadrant": "Lagging"
       }
@@ -947,6 +1242,11 @@
       },
       {
         "date": "2026-11-25",
+        "rank": 60,
+        "quadrant": "Lagging"
+      },
+      {
+        "date": "2026-11-27",
         "rank": 60,
         "quadrant": "Lagging"
       }
