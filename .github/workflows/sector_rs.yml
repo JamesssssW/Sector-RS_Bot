@@ -2,54 +2,119 @@ name: Daily Sector RS Ranking
 
 on:
   schedule:
-    # ⏱️ 港時 (HKT, UTC+8) 星期一至五排程：
-    # 1. 開市時段（香港時間 21:00 至 04:00，即 UTC 13:00 - 20:00）：每小時運行一次
-    - cron: '0 13-20 * * 1-5'
+    # 1. 美股盤中 + 收市定稿 #1（冬夏令聯集：涵蓋 13:30 至 21:30 UTC，由下方紐約時區閘門自動過濾）
+    - cron: '30 13-21 * * 1-5'
 
-    # 2. 收市時段（香港時間 05:00, 08:00, 11:00, 14:00, 17:00，即 UTC 21,0,3,6,9 點）：每 3 小時運行一次
-    - cron: '0 21,0,3,6,9 * * 1-5'
+    # 2. 收市後定稿 #2（固定港澳時間 18:00，對應美股週一至五收市，全年不受冬夏令影響）
+    #    ※ 如週六不想收、想改為週一至五 18:00 出，將 2-6 改為 1-5 即可
+    - cron: '0 10 * * 2-6'
 
-  workflow_dispatch: # 支援手動觸發
+  workflow_dispatch: # 手動觸發測試時會自動跳過時區閘門，即刻執行
 
 permissions:
-  contents: write # 必須開啟寫入權限，才能儲存 history.json
+  contents: write
+
+concurrency:
+  group: sector-rs-bot
+  cancel-in-progress: false
 
 jobs:
-  run-rs-rank:
+  run-sector-rs:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      # 第一步：用系統內置 Python 3 做紐約時區檢查（非目標時段 2 秒內結束，唔浪費安裝套件時間）
+      - name: Check NY Timezone Gate (Auto DST)
+        id: time_gate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          python3 - << 'EOF'
+          import os
+          from datetime import datetime
+          from zoneinfo import ZoneInfo
+
+          event_name = os.environ.get("EVENT_NAME", "")
+          schedule = os.environ.get("EVENT_SCHEDULE", "")
+          ny_now = datetime.now(ZoneInfo("America/New_York"))
+          hkt_now = datetime.now(ZoneInfo("Asia/Hong_Kong"))
+
+          print(f"Event: {event_name} | Cron: {schedule}")
+          print(f"NY Time: {ny_now.strftime('%Y-%m-%d %H:%M %Z')} | HKT: {hkt_now.strftime('%Y-%m-%d %H:%M %Z')}")
+
+          should_run = False
+          reason = ""
+
+          if event_name != "schedule":
+              should_run = True
+              reason = "手動觸發，直接執行"
+          elif schedule == "0 10 * * 2-6":
+              should_run = True
+              reason = "固定港澳 18:00 收市覆盤報告（全年不受冬夏令影響）"
+          else:
+              # 覆蓋紐約時間 09:30 至 16:30（共 8 個半點），容忍最多 54 分鐘排程延遲
+              # 冬令 13:30 UTC (= 08:30 EST) 與夏令 21:30 UTC (= 17:30 EDT) 會被自動略過
+              ny_minutes = ny_now.hour * 60 + ny_now.minute
+              if ny_now.weekday() < 5 and (9 * 60 + 25) <= ny_minutes < (17 * 60 + 25):
+                  should_run = True
+                  reason = f"符合美股盤中及收市定稿視窗 ({ny_now.strftime('%H:%M %Z')})"
+              else:
+                  should_run = False
+                  reason = f"非當前時令執行時段 ({ny_now.strftime('%H:%M %Z')})，自動略過"
+
+          print(f"Decision: should_run={should_run} | {reason}")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as f:
+              f.write(f"should_run={'true' if should_run else 'false'}\n")
+          EOF
+
+      - name: Checkout Repository
+        if: steps.time_gate.outputs.should_run == 'true'
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.10
+        if: steps.time_gate.outputs.should_run == 'true'
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Install Dependencies
+        if: steps.time_gate.outputs.should_run == 'true'
         run: |
+          python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run script
+      - name: Run Sector RS Analysis
+        if: steps.time_gate.outputs.should_run == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          python main.py
+        run: python main.py
 
-      - name: Commit and push history
+      - name: Commit and Push history.json
+        if: steps.time_gate.outputs.should_run == 'true'
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add history.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update daily sector RS history" && git push)
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f history.json ]; then
+            git add history.json
+            if ! git diff --cached --quiet; then
+              git commit -m "chore: update sector RS history [skip ci]"
+              git pull --rebase origin "${GITHUB_REF_NAME}"
+              git push origin "HEAD:${GITHUB_REF_NAME}"
+            else
+              echo "history.json 無變動，略過提交。"
+            fi
+          fi
 
-      # 🚨 當執行出錯時自動發送 Discord 警報
-      - name: Send Discord Failure Alert
+      - name: Notify Discord on Failure
         if: failure()
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
-          curl -H "Content-Type: application/json" \
-               -d '{"content": "🚨 **[GitHub Actions 警報]** 美股板塊量化監控系統執行失敗！請檢查 GitHub 倉庫嘅 Actions Log 了解詳情。"}' \
-               $DISCORD_WEBHOOK_URL
+          if [ -n "$DISCORD_WEBHOOK_URL" ]; then
+            curl -H "Content-Type: application/json" \
+                 -X POST \
+                 -d "{\"content\": \"🚨 **Sector-RS_Bot 排程執行失敗**\\n工作流程：\`${GITHUB_WORKFLOW}\`\\n請檢查 GitHub Actions 日誌：${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}\"}" \
+                 "$DISCORD_WEBHOOK_URL"
+          fi
