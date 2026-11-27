@@ -450,7 +450,6 @@ def build_dxy_tnx_metrics(raw_dxy_series, raw_tnx_series):
         tnx_block = "⚪ **US10Y 債息** 暫未能取得數據"
     else:
         tnx_s = raw_tnx_series.copy()
-        # 防呆保護：如数据源回傳 10 倍讀數 (如 45.0 代表 4.50%)，自動除 10 還原
         if float(tnx_s.iloc[-1]) > 20.0:
             tnx_s = tnx_s / 10.0
 
@@ -696,7 +695,7 @@ def calculate_rrg_and_rs(prev_history):
 
 
 # ==========================================
-# 4. 手機雙層卡片排版與 Discord 四張獨立 Embed 發送（總覽置頂）
+# 4. 手機兩行細字清晰卡片排版與 Discord 四張獨立 Embed 發送（總覽置頂）
 # ==========================================
 def format_rank_change(current_rank, prev_rank):
     if prev_rank is None:
@@ -711,7 +710,7 @@ def format_rank_change(current_rank, prev_rank):
 
 
 def generate_mobile_list(sub_df, prev_history, trade_date):
-    """生成手機直向專用雙層卡片清單"""
+    """生成手機直向專用三層清晰卡片清單（主行 + 趨勢副行 + 風控副行，無縮寫不折行）"""
     lines = []
     rotations = []
 
@@ -787,14 +786,16 @@ def generate_mobile_list(sub_df, prev_history, trade_date):
             quad_tag = quad_zh
 
         rs_badge = f"RS {int(row['rs_rating']):02d}"
-        pos_label = "🌡️溫度計" if ticker in THERMOMETER_ONLY_TICKERS else f"倉{row['pos_size']:.0f}%"
+        pos_label = (
+            "🌡️宏觀溫度計（不入配倉）"
+            if ticker in THERMOMETER_ONLY_TICKERS
+            else f"建議單倉 {row['pos_size']:.0f}%"
+        )
 
         line_main = f"{emoji} **#{rank:02d} {ticker}** {name}　`{rs_badge}` {change_str}"
-        line_sub = (
-            f"-# 　{quad_tag}({ratio_z:+.1f}σ) · {quality_str} · 均{avg_rank_5d:.1f} · "
-            f"波{row['ann_vol_20d']:.0f}% · {pos_label}"
-        )
-        lines.append(f"{line_main}\n{line_sub}")
+        line_sub_1 = f"-# 　{quad_tag}({ratio_z:+.1f}σ) · {quality_str} · 5日均名 {avg_rank_5d:.1f}"
+        line_sub_2 = f"-# 　年波 {row['ann_vol_20d']:.0f}% · {pos_label}"
+        lines.append(f"{line_main}\n{line_sub_1}\n{line_sub_2}")
 
     return "\n".join(lines), rotations
 
