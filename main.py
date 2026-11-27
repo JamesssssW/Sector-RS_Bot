@@ -98,23 +98,27 @@ tickers = list(SECTORS.keys()) + [
 ]
 
 # ==========================================
-# 風控、溫度計排除、連升提示與標準化 RRG 參數
+# 風控、溫度計排除、起漲突破提示與標準化 RRG 參數
 # ==========================================
-TARGET_POS_VOL = 3.0       # 單一倉位目標年化波動貢獻 (%)
-MAX_POS_WEIGHT = 25.0      # 單一板塊最大倉位上限 (%)
-ATR_PERIOD = 14            # ATR 計算週期（交易日）
-ATR_MULTIPLIER = 2.0       # 動態追蹤止損倍數
-RS_STREAK_DAYS = 3         # 觸發特別提示所需嘅連續 RS 上升交易日數
+TARGET_POS_VOL = 3.0             # 單一倉位目標年化波動貢獻 (%)
+MAX_POS_WEIGHT = 25.0            # 單一板塊最大倉位上限 (%)
+ATR_PERIOD = 14                  # ATR 計算週期（交易日）
+ATR_MULTIPLIER = 2.0             # 動態追蹤止損倍數
+
+RS_STREAK_DAYS = 3               # 觸發提示所需嘅連續 RS 上升交易日數
+RS_STREAK_MIN_RATING = 60        # 起漲突破門檻（由低於 60 升穿至 60 或以上）
+RS_BREAKOUT_ONCE_ONLY = True     # True = 單次邊緣觸發（每段突破只提示 1 次，防第 4、5 日洗版）
+RS_BREAKOUT_INCLUDE_SPY = False  # 如想同時捕捉「剛由跑輸轉為跑贏 SPY」嘅起漲點，可改 True
 
 # 僅作市場溫度計、排除出 Top 5 股票板塊配倉嘅宏觀／非股票資產
 THERMOMETER_ONLY_TICKERS = {'TLT', 'HYG', 'GLD', 'SLV', 'IBIT'}
 
-RRG_RATIO_FAST = 10        # RS-Ratio 短週期 EMA
-RRG_RATIO_SLOW = 40        # RS-Ratio 長週期 EMA
-RRG_MOM_FAST = 5           # RS-Momentum 短週期 EMA
-RRG_MOM_SLOW = 15          # RS-Momentum 長週期 EMA
-RRG_STD_WINDOW = 60        # 100 軸錨定標準化滾動波動率視窗（交易日）
-RRG_DEADBAND_SIGMA = 0.35  # 100 軸防假轉倉遲滯緩衝區（單位：σ，建議 0.30 至 0.50）
+RRG_RATIO_FAST = 10              # RS-Ratio 短週期 EMA
+RRG_RATIO_SLOW = 40              # RS-Ratio 長週期 EMA
+RRG_MOM_FAST = 5                 # RS-Momentum 短週期 EMA
+RRG_MOM_SLOW = 15                # RS-Momentum 長週期 EMA
+RRG_STD_WINDOW = 60              # 100 軸錨定標準化滾動波動率視窗（交易日）
+RRG_DEADBAND_SIGMA = 0.35        # 100 軸防假轉倉遲滯緩衝區（單位：σ，建議 0.30 至 0.50）
 
 # 象限中文顯示對照（history.json 底層維持英文不變，無縫相容）
 QUADRANT_ZH = {
@@ -201,7 +205,7 @@ def save_current_history(df_result, trade_date):
 
 
 # ==========================================
-# 3. EMA 標準化 RRG、宏觀儀表板 (VIX / DXY / US10Y)、連升偵測與 ATR 計算
+# 3. EMA 標準化 RRG、起漲突破邊緣偵測、宏觀儀表板與 ATR 計算
 # ==========================================
 def get_group_name(ticker):
     if ticker in CORE_SECTORS:
@@ -307,6 +311,37 @@ def calc_virtual_rs_rating(score, ref_scores):
     virtual_rank = below + (equal * 0.5) + 0.5
     rating = int(round(1 + (virtual_rank - 1) / (n - 1) * 98))
     return max(1, min(99, rating))
+
+
+def _is_breakout_at(r_vals, s_vals, idx):
+    """檢查第 idx 日是否符合：連續 N 日 RS 上升，且 N 日內剛由低於門檻突破起漲"""
+    if idx < RS_STREAK_DAYS:
+        return False
+    for j in range(idx, idx - RS_STREAK_DAYS, -1):
+        if r_vals[j] <= r_vals[j - 1]:
+            return False
+
+    start_idx = idx - RS_STREAK_DAYS
+    crossed_min = (r_vals[idx] >= RS_STREAK_MIN_RATING) and (r_vals[start_idx] < RS_STREAK_MIN_RATING)
+    if not RS_BREAKOUT_INCLUDE_SPY:
+        return crossed_min
+
+    crossed_spy = (s_vals[idx] > 0.0) and (s_vals[start_idx] <= 0.0)
+    return crossed_min or crossed_spy
+
+
+def detect_rs_breakout(rating_vals, score_vals):
+    """單次邊緣觸發：今日符合起漲突破，且昨日尚未觸發（防連升第 4、5 日重複洗版）"""
+    n = len(rating_vals)
+    if n <= RS_STREAK_DAYS:
+        return False
+    today_ok = _is_breakout_at(rating_vals, score_vals, n - 1)
+    if not today_ok:
+        return False
+    if RS_BREAKOUT_ONCE_ONLY and n > RS_STREAK_DAYS + 1:
+        yesterday_ok = _is_breakout_at(rating_vals, score_vals, n - 2)
+        return not yesterday_ok
+    return True
 
 
 def build_vix_metrics(raw_vix_series, raw_vix3m_series=None):
@@ -541,7 +576,7 @@ def calculate_rrg_and_rs(prev_history):
     weighted_df = (e1d_df * 0.10) + (e5d_df * 0.30) + (e2w_df * 0.30) + (e1m_df * 0.30)
     rs_score_hist_df = weighted_df / vol_20d_daily_df[sector_cols]
 
-    # 逐日橫向轉換為 1–99 IBD RS 評分，即時追蹤連續 RS 上升日數（首日無需累積即刻生效）
+    # 逐日橫向轉換為 1–99 IBD RS 評分，即時追蹤連續上升日數與單次起漲突破
     recent_scores = rs_score_hist_df.tail(15)
     n_cols = len(sector_cols)
     if n_cols > 1:
@@ -571,8 +606,11 @@ def calculate_rrg_and_rs(prev_history):
             rs_rating = int(rs_rating_hist_df[t].iloc[-1])
             pos_size = min((TARGET_POS_VOL / ann_vol_20d) * 100.0, MAX_POS_WEIGHT)
 
-            # 計算連續 RS 評分上升日數與近 4 日軌跡
+            # 計算連續 RS 評分上升日數、近 4 日軌跡及「剛突破起漲點」單次邊緣觸發
             rating_vals = rs_rating_hist_df[t].values
+            score_vals = recent_scores[t].values
+            is_rs_breakout = detect_rs_breakout(rating_vals, score_vals)
+
             rs_up_streak = 0
             for k in range(len(rating_vals) - 1, 0, -1):
                 if rating_vals[k] > rating_vals[k - 1]:
@@ -626,6 +664,7 @@ def calculate_rrg_and_rs(prev_history):
                 'rs_up_streak': rs_up_streak,
                 'rs_streak_delta': rs_streak_delta,
                 'rs_trail': rs_trail,
+                'is_rs_breakout': is_rs_breakout,
                 'ratio_z': ratio_z,
                 'mom_z': mom_z,
                 'quadrant': quadrant,
@@ -734,7 +773,7 @@ def format_rank_change(current_rank, prev_rank):
 
 
 def generate_mobile_list(sub_df, prev_history, trade_date):
-    """生成手機直向專用三層清晰卡片清單（含連續 3 日 RS 上升 🔥 特別標記）"""
+    """生成手機直向專用三層清晰卡片清單（含單次起漲突破 🔥 特別標記）"""
     lines = []
     rotations = []
 
@@ -811,9 +850,9 @@ def generate_mobile_list(sub_df, prev_history, trade_date):
             quad_tag = quad_zh
 
         rs_badge = f"RS {int(row['rs_rating']):02d}"
-        is_streak = rs_up_streak >= RS_STREAK_DAYS
+        is_streak = bool(row.get('is_rs_breakout', False))
         streak_icon = " 🔥" if is_streak else ""
-        streak_sub = f" · 🔥RS連升{rs_up_streak}日" if is_streak else ""
+        streak_sub = f" · 🔥剛穿{RS_STREAK_MIN_RATING}(連升{rs_up_streak}日)" if is_streak else ""
 
         if ticker in THERMOMETER_ONLY_TICKERS:
             pos_label = "🌡️溫度計" if is_streak else "🌡️宏觀溫度計（不入配倉）"
@@ -829,18 +868,18 @@ def generate_mobile_list(sub_df, prev_history, trade_date):
 
 
 def build_rs_streak_summary(df):
-    """彙整全市場連續 3 日（或以上）RS 評分上升嘅加速動能特別提示"""
-    streak_df = df[df['rs_up_streak'] >= RS_STREAK_DAYS].copy()
-    header = f"### 🔥 連續 {RS_STREAK_DAYS} 日 RS 上升提示（動能加速）"
+    """彙整全市場剛由低於門檻突破起漲、且連續 RS 上升嘅單次特別提示"""
+    spy_suffix = "／轉贏SPY" if RS_BREAKOUT_INCLUDE_SPY else ""
+    header = f"### 🔥 起漲突破提示（連升{RS_STREAK_DAYS}日剛穿{RS_STREAK_MIN_RATING}{spy_suffix}）"
 
+    if df.empty or 'is_rs_breakout' not in df.columns:
+        return f"{header}\n-# 今日暫無板塊剛由低於 {RS_STREAK_MIN_RATING} 連升突破起漲"
+
+    streak_df = df[df['is_rs_breakout']].copy()
     if streak_df.empty:
-        return f"{header}\n-# 今日暫無板塊錄得連續 {RS_STREAK_DAYS} 日 RS 評分上升"
+        return f"{header}\n-# 今日暫無板塊剛由低於 {RS_STREAK_MIN_RATING} 連升突破起漲"
 
-    # 優先顯示連升天數多、現時排名靠前嘅標的，最多顯示 10 檔避免總覽卡過長
-    streak_df = streak_df.sort_values(
-        by=['rs_up_streak', 'global_rank'],
-        ascending=[False, True]
-    )
+    streak_df = streak_df.sort_values(by=['global_rank'], ascending=[True])
 
     lines = []
     for _, row in streak_df.head(10).iterrows():
@@ -853,7 +892,7 @@ def build_rs_streak_summary(df):
         )
 
     extra_note = (
-        f"\n-# ...另外尚有 {len(streak_df) - 10} 檔錄得連升（明細見下方 🔥 標記）"
+        f"\n-# ...另外尚有 {len(streak_df) - 10} 檔剛起漲突破（明細見下方 🔥 標記）"
         if len(streak_df) > 10
         else ""
     )
@@ -985,7 +1024,7 @@ def send_to_discord(df, prev_history, market_regime, trade_date, is_bull_market,
     list_sub, rot_sub = generate_mobile_list(df_sub, prev_history, trade_date)
     list_macro, rot_macro = generate_mobile_list(df_macro, prev_history, trade_date)
 
-    # 跨象限轉倉快訊最多顯示 12 條（轉強優先），為連續 RS 上升提示預留充裕字元空間
+    # 跨象限轉倉快訊最多顯示 12 條（轉強優先），為起漲突破提示預留充裕字元空間
     all_rotations_sorted = sorted(rot_core + rot_sub + rot_macro, key=lambda x: (x[0], x[1]))
     rotation_lines = [item[2] for item in all_rotations_sorted]
     if rotation_lines:
@@ -1053,7 +1092,7 @@ def send_to_discord(df, prev_history, market_regime, trade_date, is_bull_market,
                 "description": list_macro,
                 "color": 15844367,
                 "footer": {
-                    "text": f"美股數據日：{trade_date} • EMA標準化RRG (±{RRG_DEADBAND_SIGMA:.2f}σ緩衝) • 🔥RS連升{RS_STREAK_DAYS}日"
+                    "text": f"美股數據日：{trade_date} • EMA標準化RRG (±{RRG_DEADBAND_SIGMA:.2f}σ緩衝) • 🔥連升{RS_STREAK_DAYS}日穿{RS_STREAK_MIN_RATING}"
                 },
                 "timestamp": current_time_iso
             }
