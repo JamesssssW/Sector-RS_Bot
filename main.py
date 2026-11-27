@@ -84,16 +84,38 @@ BENCHMARK = 'SPY'
 EQUAL_WEIGHT_BENCHMARK = 'RSP'
 VIX_TICKER = '^VIX'
 VIX3M_TICKER = '^VIX3M'
+DXY_TICKER = 'DX-Y.NYB'
+TNX_TICKER = '^TNX'
 HISTORY_FILE = 'history.json'
-tickers = list(SECTORS.keys()) + [BENCHMARK, EQUAL_WEIGHT_BENCHMARK, VIX_TICKER, VIX3M_TICKER]
 
-# 等風險倉位與 ATR 止損參數
-TARGET_POS_VOL = 3.0   # 單一倉位目標年化波動貢獻 (%)
-MAX_POS_WEIGHT = 25.0  # 單一板塊最大倉位上限 (%)
-ATR_PERIOD = 14        # ATR 計算週期（交易日）
-ATR_MULTIPLIER = 2.0   # 動態追蹤止損倍數
+tickers = list(SECTORS.keys()) + [
+    BENCHMARK,
+    EQUAL_WEIGHT_BENCHMARK,
+    VIX_TICKER,
+    VIX3M_TICKER,
+    DXY_TICKER,
+    TNX_TICKER
+]
 
-# 象限中文顯示對照（history.json 底層保持英文不變，無縫相容）
+# ==========================================
+# 風控、溫度計排除與標準化 RRG 參數（可按個人偏好微調）
+# ==========================================
+TARGET_POS_VOL = 3.0       # 單一倉位目標年化波動貢獻 (%)
+MAX_POS_WEIGHT = 25.0      # 單一板塊最大倉位上限 (%)
+ATR_PERIOD = 14            # ATR 計算週期（交易日）
+ATR_MULTIPLIER = 2.0       # 動態追蹤止損倍數
+
+# 僅作市場溫度計、排除出 Top 5 股票板塊配倉嘅宏觀／非股票資產
+THERMOMETER_ONLY_TICKERS = {'TLT', 'HYG', 'GLD', 'SLV', 'IBIT'}
+
+RRG_RATIO_FAST = 10        # RS-Ratio 短週期 EMA
+RRG_RATIO_SLOW = 40        # RS-Ratio 長週期 EMA
+RRG_MOM_FAST = 5           # RS-Momentum 短週期 EMA
+RRG_MOM_SLOW = 15          # RS-Momentum 長週期 EMA
+RRG_STD_WINDOW = 60        # 100 軸錨定標準化滾動波動率視窗（交易日）
+RRG_DEADBAND_SIGMA = 0.35  # 100 軸防假轉倉遲滯緩衝區（單位：σ，建議 0.30 至 0.50）
+
+# 象限中文顯示對照（history.json 底層維持英文不變，無縫相容）
 QUADRANT_ZH = {
     "Leading": "領先",
     "Improving": "改善",
@@ -178,7 +200,7 @@ def save_current_history(df_result, trade_date):
 
 
 # ==========================================
-# 3. 數據下載、IBD 1–99 RS、SPY/RSP/VIX 期限結構與 14 日 ATR 計算
+# 3. EMA 標準化 RRG、宏觀儀表板 (VIX / DXY / US10Y) 與 ATR 計算
 # ==========================================
 def get_group_name(ticker):
     if ticker in CORE_SECTORS:
@@ -186,16 +208,6 @@ def get_group_name(ticker):
     elif ticker in SUB_THEMATIC_SECTORS:
         return 'sub_thematic'
     return 'macro_commodity'
-
-
-def get_quadrant_info(r_ratio, r_mom):
-    if r_ratio >= 100 and r_mom >= 100:
-        return "Leading", "🟢"
-    elif r_ratio < 100 and r_mom >= 100:
-        return "Improving", "🔵"
-    elif r_ratio >= 100 and r_mom < 100:
-        return "Weakening", "🟡"
-    return "Lagging", "🔴"
 
 
 def get_quadrant_emoji(quad):
@@ -206,6 +218,82 @@ def get_quadrant_emoji(quad):
         "Lagging": "🔴"
     }
     return mapping.get(quad, "⚪")
+
+
+def calc_ema_standardized_rrg(price_series, bench_series):
+    """
+    計算 EMA 驅動 + 100 軸錨定波幅標準化嘅 RS-Ratio 與 RS-Momentum
+    回傳：(ratio_z, mom_z)，單位為相對 100 基準軸嘅標準差倍數 (σ)
+    """
+    aligned = pd.concat(
+        [price_series.rename('asset'), bench_series.rename('bench')],
+        axis=1,
+        join='inner'
+    ).dropna()
+    aligned = aligned[(aligned['asset'] > 0) & (aligned['bench'] > 0)]
+
+    if len(aligned) < 20:
+        return 0.0, 0.0
+
+    rel = aligned['asset'] / aligned['bench']
+    ema_short = rel.ewm(span=RRG_RATIO_FAST, adjust=False).mean()
+    ema_long = rel.ewm(span=RRG_RATIO_SLOW, adjust=False).mean()
+    raw_ratio = 100.0 * (ema_short / ema_long)
+
+    mom_short = raw_ratio.ewm(span=RRG_MOM_FAST, adjust=False).mean()
+    mom_long = raw_ratio.ewm(span=RRG_MOM_SLOW, adjust=False).mean()
+    raw_mom = 100.0 * (mom_short / mom_long)
+
+    ratio_std = raw_ratio.rolling(window=RRG_STD_WINDOW, min_periods=20).std().fillna(1.0).clip(lower=0.30)
+    mom_std = raw_mom.rolling(window=RRG_STD_WINDOW, min_periods=20).std().fillna(0.50).clip(lower=0.15)
+
+    ratio_z_series = (raw_ratio - 100.0) / ratio_std
+    mom_z_series = (raw_mom - 100.0) / mom_std
+
+    latest_ratio_z = float(ratio_z_series.iloc[-1]) if pd.notna(ratio_z_series.iloc[-1]) else 0.0
+    latest_mom_z = float(mom_z_series.iloc[-1]) if pd.notna(mom_z_series.iloc[-1]) else 0.0
+    return latest_ratio_z, latest_mom_z
+
+
+def resolve_quadrant_with_deadband(ratio_z, mom_z, prev_quad=None, deadband=RRG_DEADBAND_SIGMA):
+    """雙軸遲滯防假轉倉緩衝區判定：±deadband 區間內延用上一交易日方向"""
+    raw_ratio_pos = ratio_z >= 0.0
+    raw_mom_pos = mom_z >= 0.0
+
+    if prev_quad in ("Leading", "Improving", "Weakening", "Lagging"):
+        prev_ratio_pos = prev_quad in ("Leading", "Weakening")
+        prev_mom_pos = prev_quad in ("Leading", "Improving")
+
+        if ratio_z >= deadband:
+            final_ratio_pos = True
+        elif ratio_z <= -deadband:
+            final_ratio_pos = False
+        else:
+            final_ratio_pos = prev_ratio_pos
+
+        if mom_z >= deadband:
+            final_mom_pos = True
+        elif mom_z <= -deadband:
+            final_mom_pos = False
+        else:
+            final_mom_pos = prev_mom_pos
+    else:
+        final_ratio_pos = raw_ratio_pos
+        final_mom_pos = raw_mom_pos
+
+    def _map_quad(r_pos, m_pos):
+        if r_pos and m_pos:
+            return "Leading", "🟢"
+        elif not r_pos and m_pos:
+            return "Improving", "🔵"
+        elif r_pos and not m_pos:
+            return "Weakening", "🟡"
+        return "Lagging", "🔴"
+
+    raw_quad, _ = _map_quad(raw_ratio_pos, raw_mom_pos)
+    final_quad, final_emoji = _map_quad(final_ratio_pos, final_mom_pos)
+    held_by_deadband = (raw_quad != final_quad)
+    return final_quad, final_emoji, held_by_deadband
 
 
 def calc_virtual_rs_rating(score, ref_scores):
@@ -321,8 +409,82 @@ def build_vix_metrics(raw_vix_series, raw_vix3m_series=None):
     return f"{vix_block}\n{term_block}", vix_info
 
 
-def calculate_rrg_and_rs():
-    print(f"正在下載全市場 {len(SECTORS)} 檔 ETF 及 SPY / RSP / VIX / VIX3M 1 年數據...")
+def build_dxy_tnx_metrics(raw_dxy_series, raw_tnx_series):
+    """獨立計算美元指數 (DXY) 與 10 年期美債息 (US10Y)，以手機雙層格式輸出"""
+    # 1. 美元指數 (DX-Y.NYB)
+    if raw_dxy_series is None or raw_dxy_series.empty:
+        dxy_block = "⚪ **DXY 美元** 暫未能取得數據"
+    else:
+        dxy_latest = float(raw_dxy_series.iloc[-1])
+        if len(raw_dxy_series) >= 2:
+            dxy_prev = float(raw_dxy_series.iloc[-2])
+            dxy_chg_pct = ((dxy_latest - dxy_prev) / dxy_prev * 100.0) if dxy_prev > 0 else 0.0
+        else:
+            dxy_chg_pct = 0.0
+
+        dxy_sma20 = (
+            float(raw_dxy_series.rolling(window=20).mean().iloc[-1])
+            if len(raw_dxy_series) >= 20
+            else dxy_latest
+        )
+        dxy_sma50 = (
+            float(raw_dxy_series.rolling(window=50).mean().iloc[-1])
+            if len(raw_dxy_series) >= 50
+            else dxy_sma20
+        )
+
+        if dxy_latest > dxy_sma20 and dxy_latest > dxy_sma50:
+            dxy_emoji, dxy_status, dxy_pos = "🟠", "偏強上行", "高於雙均線"
+        elif dxy_latest < dxy_sma20 and dxy_latest < dxy_sma50:
+            dxy_emoji, dxy_status, dxy_pos = "🟢", "偏軟回落", "低於雙均線"
+        else:
+            dxy_emoji, dxy_status, dxy_pos = "🟡", "區間震盪", "均線之間"
+
+        dxy_block = (
+            f"{dxy_emoji} **DXY 美元** `{dxy_latest:.2f}` (`{dxy_chg_pct:+.2f}%`) · {dxy_status}\n"
+            f"-# 　20D均 {dxy_sma20:.2f} · 50D均 {dxy_sma50:.2f} ({dxy_pos})"
+        )
+
+    # 2. 10 年期美債孳息率 (^TNX，單位 %，變動以基點 bp 顯示)
+    if raw_tnx_series is None or raw_tnx_series.empty:
+        tnx_block = "⚪ **US10Y 債息** 暫未能取得數據"
+    else:
+        tnx_s = raw_tnx_series.copy()
+        # 防呆保護：如数据源回傳 10 倍讀數 (如 45.0 代表 4.50%)，自動除 10 還原
+        if float(tnx_s.iloc[-1]) > 20.0:
+            tnx_s = tnx_s / 10.0
+
+        tnx_latest = float(tnx_s.iloc[-1])
+        tnx_chg_bp = (tnx_latest - float(tnx_s.iloc[-2])) * 100.0 if len(tnx_s) >= 2 else 0.0
+        tnx_5d_bp = (tnx_latest - float(tnx_s.iloc[-6])) * 100.0 if len(tnx_s) >= 6 else 0.0
+        tnx_sma20 = (
+            float(tnx_s.rolling(window=20).mean().iloc[-1])
+            if len(tnx_s) >= 20
+            else tnx_latest
+        )
+
+        if tnx_latest > tnx_sma20 and tnx_5d_bp >= 15.0:
+            tnx_emoji, tnx_status = "🔴", "急升壓估值⚠️"
+        elif tnx_latest > tnx_sma20:
+            tnx_emoji, tnx_status = "🟠", "偏強上行"
+        elif tnx_latest < tnx_sma20 and tnx_5d_bp <= -15.0:
+            tnx_emoji, tnx_status = "🟢", "顯著回落（估值鬆綁）"
+        elif tnx_latest < tnx_sma20:
+            tnx_emoji, tnx_status = "🟢", "偏軟回落"
+        else:
+            tnx_emoji, tnx_status = "🟡", "持平震盪"
+
+        tnx_trend = "高於20D均" if tnx_latest > tnx_sma20 else "低於20D均"
+        tnx_block = (
+            f"{tnx_emoji} **US10Y 債息** `{tnx_latest:.2f}%` (`{tnx_chg_bp:+.1f}bp`) · {tnx_status}\n"
+            f"-# 　20D均 {tnx_sma20:.2f}% · 5D {tnx_5d_bp:+.0f}bp ({tnx_trend})"
+        )
+
+    return f"{dxy_block}\n{tnx_block}"
+
+
+def calculate_rrg_and_rs(prev_history):
+    print(f"正在下載全市場 {len(SECTORS)} 檔 ETF 及 SPY / RSP / VIX / VIX3M / DXY / US10Y 數據...")
 
     try:
         raw = yf.download(tickers, period='1y', progress=False, auto_adjust=True)
@@ -340,14 +502,22 @@ def calculate_rrg_and_rs():
     if data is None or isinstance(data, pd.Series) or data.empty:
         raise ValueError("❌ 錯誤：Yahoo Finance 下載返回的數據為空，請稍後再試。")
 
+    # 在對齊與 ffill 之前，獨立抽出非美股時段宏觀序列，確保單日變動唔被假期補值稀釋
     raw_vix_series = data[VIX_TICKER].dropna() if VIX_TICKER in data.columns else pd.Series(dtype=float)
     raw_vix3m_series = data[VIX3M_TICKER].dropna() if VIX3M_TICKER in data.columns else pd.Series(dtype=float)
+    raw_dxy_series = data[DXY_TICKER].dropna() if DXY_TICKER in data.columns else pd.Series(dtype=float)
+    raw_tnx_series = data[TNX_TICKER].dropna() if TNX_TICKER in data.columns else pd.Series(dtype=float)
 
-    data = data.dropna(axis=1, how='all').ffill()
-    high_df = high_df.reindex(columns=data.columns).ffill()
-    low_df = low_df.reindex(columns=data.columns).ffill()
+    if BENCHMARK not in data.columns:
+        raise ValueError(f"❌ 錯誤：未能取得基準 {BENCHMARK} 數據。")
 
-    if BENCHMARK not in data.columns or len(data) < 200:
+    # 強制鎖死對齊 SPY 嘅美股交易日期，防止外匯 (DX-Y.NYB) 非美股交易日多出一行導致 ETF 單日變動歸零
+    spy_valid_dates = data[BENCHMARK].dropna().index
+    data = data.reindex(spy_valid_dates).dropna(axis=1, how='all').ffill()
+    high_df = high_df.reindex(index=spy_valid_dates, columns=data.columns).ffill()
+    low_df = low_df.reindex(index=spy_valid_dates, columns=data.columns).ffill()
+
+    if len(data) < 200:
         raise ValueError(f"❌ 錯誤：下載的 {BENCHMARK} 數據不足 200 筆（目前只有 {len(data)} 筆），無法計算 SMA200。")
 
     # 1. 美股交易日期及 SPY 大市環境 (SMA200)
@@ -357,31 +527,7 @@ def calculate_rrg_and_rs():
     spy_latest = spy_series.iloc[-1]
     is_bull_market = bool(spy_latest >= spy_sma200)
 
-    # 2. 計算 RRG (包含 60 檔板塊及 RSP 等權基準)
-    rrg_targets = list(SECTORS.keys()) + ([EQUAL_WEIGHT_BENCHMARK] if EQUAL_WEIGHT_BENCHMARK in data.columns else [])
-    ratios = pd.DataFrame()
-    for t in rrg_targets:
-        if t in data.columns:
-            ratios[t] = data[t] / data[BENCHMARK]
-
-    rs_ratio = pd.DataFrame()
-    rs_momentum = pd.DataFrame()
-
-    for t in rrg_targets:
-        if t in ratios.columns:
-            series = ratios[t]
-            sma_short = series.rolling(window=10).mean()
-            sma_long = series.rolling(window=50).mean()
-            rs_ratio[t] = 100 * (sma_short / sma_long)
-
-            mom_short = rs_ratio[t].rolling(window=5).mean()
-            mom_long = rs_ratio[t].rolling(window=20).mean()
-            rs_momentum[t] = 100 * (mom_short / mom_long)
-
-    latest_ratio = rs_ratio.iloc[-1]
-    latest_mom = rs_momentum.iloc[-1]
-
-    # 3. 計算多週期相對回報率、20 日波動率與 14 日 ATR
+    # 2. 計算多週期相對回報率、20 日波動率、EMA 標準化 RRG 與 14 日 ATR
     daily_returns = data.pct_change(1, fill_method=None)
     vol_20d_daily = daily_returns.rolling(window=20).std().iloc[-1] * 100
 
@@ -430,14 +576,15 @@ def calculate_rrg_and_rs():
             atr_stop_price = max(latest_close - (ATR_MULTIPLIER * atr_14), 0.0)
             atr_stop_pct = ((ATR_MULTIPLIER * atr_14) / latest_close * 100.0) if latest_close > 0 else 0.0
 
-            r_ratio = float(latest_ratio.get(t, 100.0))
-            r_mom = float(latest_mom.get(t, 100.0))
-            if pd.isna(r_ratio):
-                r_ratio = 100.0
-            if pd.isna(r_mom):
-                r_mom = 100.0
+            # EMA + 100 軸錨定波幅標準化 RRG + 上一交易日遲滯防假轉倉緩衝區
+            ratio_z, mom_z = calc_ema_standardized_rrg(close_s, spy_series)
+            item_hist = prev_history.get(t, {})
+            past_records = [r for r in item_hist.get('records', []) if r.get('date') != trade_date]
+            prev_quad = past_records[-1].get('quadrant') if past_records else None
 
-            quadrant, quad_emoji = get_quadrant_info(r_ratio, r_mom)
+            quadrant, quad_emoji, held_by_deadband = resolve_quadrant_with_deadband(
+                ratio_z, mom_z, prev_quad=prev_quad, deadband=RRG_DEADBAND_SIGMA
+            )
 
             results.append({
                 'ticker': t,
@@ -449,8 +596,11 @@ def calculate_rrg_and_rs():
                 'ann_vol_20d': ann_vol_20d,
                 'pos_size': pos_size,
                 'rs_score': rs_score,
+                'ratio_z': ratio_z,
+                'mom_z': mom_z,
                 'quadrant': quadrant,
-                'quad_emoji': quad_emoji
+                'quad_emoji': quad_emoji,
+                'held_by_deadband': held_by_deadband
             })
 
     df_rs = pd.DataFrame(results)
@@ -464,7 +614,7 @@ def calculate_rrg_and_rs():
     else:
         df_rs['rs_rating'] = 99
 
-    # 4. 組合手機版頂部 SPY / RSP / VIX / VIX3M 宏觀儀表板
+    # 3. 組合手機版頂部 SPY / RSP / VIX / VIX3M / DXY / US10Y 宏觀儀表板
     beat_count = int((df_rs['rs_score'] > 0).sum())
     if beat_count == n:
         spy_rs_display = "RS <01"
@@ -505,13 +655,10 @@ def calculate_rrg_and_rs():
         rsp_rs_score = rsp_weighted / max(rsp_raw_vol, 0.2)
         rsp_rs_rating = calc_virtual_rs_rating(rsp_rs_score, df_rs['rs_score'])
 
-        rsp_r_ratio = float(latest_ratio.get(EQUAL_WEIGHT_BENCHMARK, 100.0))
-        rsp_r_mom = float(latest_mom.get(EQUAL_WEIGHT_BENCHMARK, 100.0))
-        if pd.isna(rsp_r_ratio):
-            rsp_r_ratio = 100.0
-        if pd.isna(rsp_r_mom):
-            rsp_r_mom = 100.0
-        rsp_quad, rsp_quad_emoji = get_quadrant_info(rsp_r_ratio, rsp_r_mom)
+        rsp_ratio_z, rsp_mom_z = calc_ema_standardized_rrg(rsp_series, spy_series)
+        rsp_quad, rsp_quad_emoji, _ = resolve_quadrant_with_deadband(
+            rsp_ratio_z, rsp_mom_z, prev_quad=None, deadband=0.0
+        )
         rsp_quad_zh = QUADRANT_ZH.get(rsp_quad, rsp_quad)
 
         if rsp_rs_score > 0:
@@ -523,29 +670,33 @@ def calculate_rrg_and_rs():
 
         rsp_line = (
             f"{rsp_sma_emoji} **RSP** `RS {rsp_rs_rating:02d}` · {rsp_sma_text}\n"
-            f"-# 　{rsp_quad_emoji}{rsp_quad_zh} · {rsp_vs_spy} SPY (等權平均參考)"
+            f"-# 　{rsp_quad_emoji}{rsp_quad_zh}({rsp_ratio_z:+.1f}σ) · {rsp_vs_spy} SPY (等權平均參考)"
         )
         rsp_info = {
             "rs_rating": rsp_rs_rating,
             "rs_score": rsp_rs_score,
             "quadrant": rsp_quad,
+            "ratio_z": rsp_ratio_z,
             "vs_spy": rsp_vs_spy
         }
     else:
         rsp_line = "⚪ **RSP** 暫未能取得數據"
 
     vix_block, vix_info = build_vix_metrics(raw_vix_series, raw_vix3m_series)
+    dxy_tnx_block = build_dxy_tnx_metrics(raw_dxy_series, raw_tnx_series)
+
     market_regime = (
         f"### 📡 大市環境｜{trade_date}\n"
         f"{spy_line}\n"
         f"{rsp_line}\n"
-        f"{vix_block}"
+        f"{vix_block}\n"
+        f"{dxy_tnx_block}"
     )
     return df_rs, market_regime, trade_date, is_bull_market, rsp_info, vix_info
 
 
 # ==========================================
-# 4. 手機雙層卡片排版與 Discord 四張獨立 Embed 發送
+# 4. 手機雙層卡片排版與 Discord 四張獨立 Embed 發送（總覽置頂）
 # ==========================================
 def format_rank_change(current_rank, prev_rank):
     if prev_rank is None:
@@ -560,7 +711,7 @@ def format_rank_change(current_rank, prev_rank):
 
 
 def generate_mobile_list(sub_df, prev_history, trade_date):
-    """生成手機直向專用雙層卡片清單（主行粗體 + -# 灰階細字副行，絕不折行跑版）"""
+    """生成手機直向專用雙層卡片清單"""
     lines = []
     rotations = []
 
@@ -583,6 +734,9 @@ def generate_mobile_list(sub_df, prev_history, trade_date):
         emoji = row['quad_emoji']
         quad = row['quadrant']
         quad_zh = QUADRANT_ZH.get(quad, quad)
+        ratio_z = float(row['ratio_z'])
+        mom_z = float(row['mom_z'])
+        held_by_deadband = bool(row['held_by_deadband'])
 
         full_ranks = past_ranks + [rank]
         full_quads = past_quads + [quad]
@@ -602,15 +756,15 @@ def generate_mobile_list(sub_df, prev_history, trade_date):
             if leading_days <= 2:
                 quality_str = "剛轉強"
             else:
-                quality_str = f"長期強({leading_days}天)"
+                quality_str = f"強{leading_days}天"
         elif rank_std > 3.5:
-            quality_str = "忽上忽下⚠️"
+            quality_str = "波動⚠️"
         elif rank < avg_rank_5d - 1:
-            quality_str = "穩步上升📈"
+            quality_str = "穩升📈"
         elif rank > avg_rank_5d + 1:
-            quality_str = "回落中📉"
+            quality_str = "回落📉"
         else:
-            quality_str = "橫盤穩定"
+            quality_str = "橫盤"
 
         has_rotated = False
         if prev_quad and prev_quad != quad:
@@ -622,27 +776,31 @@ def generate_mobile_list(sub_df, prev_history, trade_date):
                 priority,
                 rank,
                 f"▸ **#{rank:02d} {ticker}** {name}　`RS {int(row['rs_rating']):02d}`\n"
-                f"-# 　{prev_emoji}{prev_quad_zh} ➔ {emoji}{quad_zh}"
+                f"-# 　{prev_emoji}{prev_quad_zh} ➔ {emoji}{quad_zh} (趨勢 {ratio_z:+.1f}σ / 動能 {mom_z:+.1f}σ)"
             ))
 
-        quad_tag = f"{quad_zh}⭐" if has_rotated else quad_zh
-        rs_badge = f"RS {int(row['rs_rating']):02d}"
+        if has_rotated:
+            quad_tag = f"{quad_zh}⭐"
+        elif held_by_deadband:
+            quad_tag = f"{quad_zh}🛡️"
+        else:
+            quad_tag = quad_zh
 
-        # 主行：象限燈 + 兩位數排名 + 代號 + 名稱 + RS 膠囊 + 升降
+        rs_badge = f"RS {int(row['rs_rating']):02d}"
+        pos_label = "🌡️溫度計" if ticker in THERMOMETER_ONLY_TICKERS else f"倉{row['pos_size']:.0f}%"
+
         line_main = f"{emoji} **#{rank:02d} {ticker}** {name}　`{rs_badge}` {change_str}"
-        # 副行：-# 細字灰階，濃縮象限／品質／5D均／年波／單倉，確保單行不折行
         line_sub = (
-            f"-# 　{quad_tag} · {quality_str} · 均{avg_rank_5d:.1f} · "
-            f"波{row['ann_vol_20d']:.0f}% · 倉{row['pos_size']:.0f}%"
+            f"-# 　{quad_tag}({ratio_z:+.1f}σ) · {quality_str} · 均{avg_rank_5d:.1f} · "
+            f"波{row['ann_vol_20d']:.0f}% · {pos_label}"
         )
         lines.append(f"{line_main}\n{line_sub}")
 
-    # 如想每檔之間留更大空白，可把下面 "\n" 改為 "\n\n"
     return "\n".join(lines), rotations
 
 
 def build_spy_benchmark_summary(df, rsp_info=None, vix_info=None):
-    """手機版 SPY / RSP 基準分界線、跑贏廣度與 VIX 期限摘要"""
+    """手機版 SPY / RSP 基準分界線與跑贏廣度"""
     n = len(df)
     if n == 0:
         return ""
@@ -684,39 +842,55 @@ def build_spy_benchmark_summary(df, rsp_info=None, vix_info=None):
             f"-# 　{vix_info['term_emoji']} {vix_info['term_title']} · {vix_info['term_note']}"
         )
 
+    shield_count = int(df['held_by_deadband'].sum()) if 'held_by_deadband' in df.columns else 0
+    shield_note = f" · 🛡️緩衝鎖定 `{shield_count}` 檔" if shield_count > 0 else ""
+
     return (
         f"### 🎯 大市基準與廣度\n"
         f"▸ **SPY** `{spy_rs_str}`{rsp_part}\n"
         f"▸ **跑贏門檻** **`{threshold_str}`** · 廣度 `{beat_count}/{n} ({beat_pct:.0f}%)`\n"
-        f"-# 　{breadth_tag}"
+        f"-# 　{breadth_tag}{shield_note}"
         f"{vix_part}"
     )
 
 
 def build_vol_sizing_summary(df, is_bull_market):
-    """手機雙層卡片版：全市場 Top 5 領先等風險配倉與 14 日 ATR 止損"""
-    top_leading = df[df['quadrant'] == 'Leading'].head(5).copy()
-    if top_leading.empty:
-        return "### ⚖️ Top 5 領先配倉與止損\n*目前暫無領先象限標的，建議保留現金觀望。*"
+    """只針對股票板塊計算 Top 5 領先等風險配倉，並獨立列出領先嘅宏觀溫度計"""
+    all_leading = df[df['quadrant'] == 'Leading'].copy()
+    equity_leading = all_leading[~all_leading['ticker'].isin(THERMOMETER_ONLY_TICKERS)].head(5).copy()
+    macro_leading = all_leading[all_leading['ticker'].isin(THERMOMETER_ONLY_TICKERS)].copy()
 
-    inv_vols = 1.0 / top_leading['ann_vol_20d']
+    if not macro_leading.empty:
+        macro_tags = [
+            f"{row['ticker']}({row['name']} RS {int(row['rs_rating']):02d})"
+            for _, row in macro_leading.iterrows()
+        ]
+        macro_note = f"\n-# 🌡️ 領先宏觀溫度計：{' · '.join(macro_tags)}（已排除出配倉）"
+    else:
+        macro_note = "\n-# 🌡️ 宏觀溫度計：目前無債券／貴金屬／BTC 處於領先象限"
+
+    header = f"### ⚖️ Top 5 股票板塊配倉與 {ATR_PERIOD}D ATR 止損"
+
+    if equity_leading.empty:
+        return f"{header}\n*目前暫無股票板塊處於領先象限，建議保留現金觀望。*{macro_note}"
+
+    inv_vols = 1.0 / equity_leading['ann_vol_20d']
     weights = (inv_vols / inv_vols.sum()) * 100.0
     exposure_scale = 1.0 if is_bull_market else 0.5
 
     lines = []
-    for (_, row), w in zip(top_leading.iterrows(), weights):
+    for (_, row), w in zip(equity_leading.iterrows(), weights):
         adj_w = w * exposure_scale
         lines.append(
             f"🟢 **#{int(row['global_rank']):02d} {row['ticker']}** {row['name']}　"
             f"`RS {int(row['rs_rating']):02d}` · 倉 **`{adj_w:.1f}%`**\n"
-            f"-# 　現價 ${row['close']:.2f} · {ATR_MULTIPLIER:g}xATR止損 ${row['atr_stop_price']:.2f} (-{row['atr_stop_pct']:.1f}%)"
+            f"-# 　現價 ${row['close']:.2f} · 止損 ${row['atr_stop_price']:.2f} (-{row['atr_stop_pct']:.1f}%) · 強{row['ratio_z']:+.1f}σ"
         )
 
-    header = f"### ⚖️ Top 5 領先配倉與 {ATR_PERIOD}D ATR 止損"
     if not is_bull_market:
         header += "\n-# ⚠️ 空頭警戒模式：總股票倉位自動減半至 50%，其餘建議持有現金／美債"
 
-    return header + "\n" + "\n".join(lines)
+    return header + "\n" + "\n".join(lines) + macro_note
 
 
 def send_single_embed(webhook_url, embed, label):
@@ -750,7 +924,6 @@ def send_to_discord(df, prev_history, market_regime, trade_date, is_bull_market,
     list_sub, rot_sub = generate_mobile_list(df_sub, prev_history, trade_date)
     list_macro, rot_macro = generate_mobile_list(df_macro, prev_history, trade_date)
 
-    # 轉倉快訊最多顯示 15 條（轉強優先），確保手機版簡潔且遠低於 4,096 字元上限
     all_rotations_sorted = sorted(rot_core + rot_sub + rot_macro, key=lambda x: (x[0], x[1]))
     rotation_lines = [item[2] for item in all_rotations_sorted]
     if rotation_lines:
@@ -758,7 +931,7 @@ def send_to_discord(df, prev_history, market_regime, trade_date, is_bull_market,
         extra_note = f"\n-# ...另外尚有 {len(rotation_lines) - 15} 檔跨象限變動" if len(rotation_lines) > 15 else ""
         rotation_section = "### 🔄 跨象限轉倉快訊（轉強優先）\n" + "\n".join(shown_lines) + extra_note
     else:
-        rotation_section = "### 🔄 跨象限轉倉快訊\n-# 今日暫無板塊發生跨象限轉倉"
+        rotation_section = "### 🔄 跨象限轉倉快訊\n-# 今日暫無板塊突破緩衝區發生轉倉"
 
     quad_counts = df['quadrant'].value_counts()
     market_breadth_summary = (
@@ -769,48 +942,50 @@ def send_to_discord(df, prev_history, market_regime, trade_date, is_bull_market,
         f"🔴 落後 `{quad_counts.get('Lagging', 0)}`"
     )
 
-    spy_benchmark_section = build_spy_benchmark_summary(df, rsp_info, vix_info)
+    # 頂部 market_regime 已經完整顯示 VIX 與 VIX/VIX3M，傳入 vix_info=None 避免重複
+    spy_benchmark_section = build_spy_benchmark_summary(df, rsp_info, vix_info=None)
     vol_sizing_section = build_vol_sizing_summary(df, is_bull_market)
     current_time_iso = datetime.now(timezone.utc).isoformat()
 
     embeds = [
         (
-            "Embed 1/4 核心板塊",
+            "Embed 1/4 全市場總覽看板",
             {
-                "title": f"📊 [1/3] 核心板塊與權重行業 ({len(df_core)} 檔)",
-                "description": f"{market_regime}\n\n### 📋 核心板塊排名\n{list_core}",
-                "color": 3066993
-            }
-        ),
-        (
-            "Embed 2/4 前沿科技賽道",
-            {
-                "title": f"🚀 [2/3] 前沿科技與細分賽道 ({len(df_sub)} 檔)",
-                "description": list_sub,
-                "color": 3447003
-            }
-        ),
-        (
-            "Embed 3/4 大宗與宏觀輪動",
-            {
-                "title": f"🌍 [3/3] 大宗資源與宏觀輪動 ({len(df_macro)} 檔)",
-                "description": list_macro,
-                "color": 15844367
-            }
-        ),
-        (
-            "Embed 4/4 全市場總覽看板",
-            {
-                "title": f"🧭 全市場 {len(df)} 檔輪動總結",
+                "title": f"🧭 [1/4] 全市場 {len(df)} 檔輪動總結｜大局與配倉",
                 "description": (
+                    f"{market_regime}\n\n"
                     f"{spy_benchmark_section}\n\n"
                     f"{market_breadth_summary}\n\n"
                     f"{rotation_section}\n\n"
                     f"{vol_sizing_section}"
                 ),
-                "color": 5793266,
+                "color": 5793266
+            }
+        ),
+        (
+            "Embed 2/4 核心板塊",
+            {
+                "title": f"📊 [2/4] 核心板塊與權重行業 ({len(df_core)} 檔)",
+                "description": list_core,
+                "color": 3066993
+            }
+        ),
+        (
+            "Embed 3/4 前沿科技賽道",
+            {
+                "title": f"🚀 [3/4] 前沿科技與細分賽道 ({len(df_sub)} 檔)",
+                "description": list_sub,
+                "color": 3447003
+            }
+        ),
+        (
+            "Embed 4/4 大宗與宏觀輪動",
+            {
+                "title": f"🌍 [4/4] 大宗資源與宏觀輪動 ({len(df_macro)} 檔)",
+                "description": list_macro,
+                "color": 15844367,
                 "footer": {
-                    "text": f"美股數據日：{trade_date} • IBD RS (1-99) • {ATR_PERIOD}D ATR x{ATR_MULTIPLIER:g} 止損"
+                    "text": f"美股數據日：{trade_date} • EMA標準化RRG (±{RRG_DEADBAND_SIGMA:.2f}σ緩衝) • {ATR_PERIOD}D ATR x{ATR_MULTIPLIER:g}"
                 },
                 "timestamp": current_time_iso
             }
@@ -828,6 +1003,6 @@ def send_to_discord(df, prev_history, market_regime, trade_date, is_bull_market,
 # ==========================================
 if __name__ == "__main__":
     prev_history = load_previous_history()
-    df_result, market_regime, trade_date, is_bull_market, rsp_info, vix_info = calculate_rrg_and_rs()
+    df_result, market_regime, trade_date, is_bull_market, rsp_info, vix_info = calculate_rrg_and_rs(prev_history)
     send_to_discord(df_result, prev_history, market_regime, trade_date, is_bull_market, rsp_info, vix_info)
     save_current_history(df_result, trade_date)
